@@ -36,7 +36,7 @@ jobs:
         run: dotnet restore ./ROBdk97.XmlDocToMd.csproj
 
       - name: Publish
-        run: dotnet publish ./ROBdk97.XmlDocToMd.csproj -r ${{ matrix.runtime }} -c Release --no-restore -o publish/${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained false
+        run: dotnet publish ./ROBdk97.XmlDocToMd.csproj -r ${{ matrix.runtime }} -c Release --no-restore -o publish/${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4
