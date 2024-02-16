@@ -16,16 +16,19 @@ jobs:
         include:
           - os: windows-latest
             runtime: win-x64
+            file_name: XmlDocToMd.exe
           - os: ubuntu-latest
             runtime: linux-x64
+            file_name: XmlDocToMd
           - os: ubuntu-latest
             runtime: linux-arm64
+            file_name: XmlDocToMd
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
@@ -33,26 +36,39 @@ jobs:
         run: dotnet restore ./ROBdk97.XmlDocToMd.csproj
 
       - name: Publish
-        run: dotnet publish ./ROBdk97.XmlDocToMd.csproj -r ${{ matrix.runtime }} -c Release --no-restore -o publish/${{ matrix.runtime }}
+        run: dotnet publish ./ROBdk97.XmlDocToMd.csproj -r ${{ matrix.runtime }} -c Release --no-restore -o publish/${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained
 
       - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v3.1.3
+        uses: actions/upload-artifact@v4
         with:
           name: XmlDocToMd-${{ matrix.runtime }}
-          path: publish/${{ matrix.runtime }}
+          path: publish/${{ matrix.runtime }}/${{ matrix.file_name }}
+          # This directly specifies the output file based on the runtime
 
   release:
     needs: build-and-release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           path: release
+      - name: Rename files based on runtime
+        run: |
+          cd release
+          for dir in XmlDocToMd-*; do
+            runtime="${dir#XmlDocToMd-}"
+            file=$(find "$dir" -type f -name "*")
+            if [[ "$runtime" == "win-x64" ]]; then
+              mv "$file" "${dir}/XmlDocToMd-$runtime.exe"
+            else
+              mv "$file" "${dir}/XmlDocToMd-$runtime"
+            fi
+          done
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: release/*.zip
+          files: release/*/*
