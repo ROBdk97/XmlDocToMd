@@ -55,6 +55,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release
+      - name: Rename files based on runtime
+        run: |
+          cd release
+          for dir in XmlDocToMd-*; do
+            runtime="${dir#XmlDocToMd-}"
+            file=$(find "$dir" -type f -name "*")
+            mv "$file" "${dir}/XmlDocToMd-$runtime"
+          done
 
       - name: Release
         uses: softprops/action-gh-release@v1
