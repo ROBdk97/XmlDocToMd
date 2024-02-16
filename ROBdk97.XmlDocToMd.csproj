@@ -8,6 +8,7 @@
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<RuntimeIdentifiers>win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
 		<Platforms>AnyCPU;x64</Platforms>
+		<Configurations>Debug;Release;XMLtoMD</Configurations>
 	</PropertyGroup>
 	<ItemGroup>
 	  <Compile Remove="doc\**" />
@@ -37,7 +38,7 @@
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-	  <Exec Command="IF &quot;$(ConfigurationName)&quot; == &quot;Release&quot; (&#xD;&#xA;call &quot;$(TargetDir)$(TargetName).exe&quot;  -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r &#xD;&#xA;)" />
+	  <Exec Command="IF &quot;$(ConfigurationName)&quot; == &quot;XMLtoMD&quot; (&#xD;&#xA;call &quot;$(TargetDir)$(TargetName).exe&quot;  -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r &#xD;&#xA;)" />
 	</Target>
 
 </Project>
