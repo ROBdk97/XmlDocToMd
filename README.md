@@ -31,10 +31,10 @@
     XmlDocToMd.exe -i "C:\Docs\input.xml" -o "C:\Docs\output.md" -r
 ```
 **Visual Studio post-build event example to convert XML documentation to Markdown when building a project in Release mode:**
-```bat
-    IF "$(ConfigurationName)" == "Release" (
-        call "$(SolutionDir)tools\XmlDocToMd.exe" -s "$(ProjectDir)\" -d "$(ConfigurationName)" -o "$(ProjectDir)\" -g -r 
-    )
+```xml
+    <Target Name = "PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'XMLtoMD'">
+    	<Exec Command = "call &quot;$(TargetDir)$(TargetName).exe&quot; -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r" />
+    </Target>
 ```
  These examples illustrate just a few of the ways the XmlDocToMd tool can be configured to meet specific documentation conversion needs, from simple file conversions to more complex scenarios involving multiple directories, console integration, and special formatting requirements. 
 

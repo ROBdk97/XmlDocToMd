@@ -44,10 +44,10 @@ namespace ROBdk97.XmlDocToMd
     /// </code>
     /// 
     /// <b>Visual Studio post-build event example to convert XML documentation to Markdown when building a project in Release mode:</b>
-    /// <code lang="bat">
-    /// IF "$(ConfigurationName)" == "Release" (
-    ///     call "$(SolutionDir)tools\XmlDocToMd.exe" -s "$(ProjectDir)\" -d "$(ConfigurationName)" -o "$(ProjectDir)\" -g -r 
-    /// )
+    /// <code lang="xml"><![CDATA[
+	///<Target Name = "PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'XMLtoMD'">
+	///	<Exec Command = "call &quot;$(TargetDir)$(TargetName).exe&quot; -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r" />
+    ///</Target>]]>
     /// </code>
     /// 
     /// These examples illustrate just a few of the ways the XmlDocToMd tool can be configured to meet specific documentation conversion needs, from simple file conversions to more complex scenarios involving multiple directories, console integration, and special formatting requirements.
