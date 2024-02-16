@@ -46,17 +46,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
           path: release
 
-      - name: Prepare Release Files
-        run: |
-          mkdir release_files
-          find release -type f -exec mv {} release_files/ \;
-
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: release_files/*
+          files: release/*.zip
