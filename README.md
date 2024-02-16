@@ -93,30 +93,30 @@
 #### Properties:
 |Name | Type | Description |
 |-----|------|------|
-|InputFile|[String](#string)| Gets or sets the input XML file path.   
-  Use -i or --inputfile followed by the file path to specify the input XML file.|
-|ConsoleIn|[Boolean](#boolean)| Gets or sets a value indicating whether to read input from the console.   
-  Use --cin to read input from the console instead of a file.|
-|OutputFile|[String](#string)| Gets or sets the output markdown file path.   
-  Use -o or --outputfile followed by the file path to specify the output markdown file.|
-|SecondaryOutputDirectory|[String](#string)| Gets or sets the path to a secondary output directory. To copy to a network share for example.   
-  Use -l or --secondaryDir followed by the directory path to specify a secondary output directory.|
-|ConsoleOut|[Boolean](#boolean)| Gets or sets a value indicating whether to write output to the console.   
-  Use --cout to write output to the console instead of a file.|
-|UnexpectedTagAction|[UnexpectedTagActionEnum](#unexpectedtagactionenum)| Gets or sets the action to take on unexpected tags.   
-  Use -u or --unexpected followed by Accept, Warn, or Error to specify how to handle unexpected tags.|
-|SearchDirectory|[String](#string)| Gets or sets the search directory for XML files.   
-  Use -s or --search followed by the directory path to specify where to search for .xml files. This is used in combination with the -d or --directory argument.|
-|Directory|[String](#string)| Gets or sets the directory name to search for .xml files.   
-  Use -d or --directory followed by the directory name. This is used in combination with the -s or --search argument. Defaults to "Release".|
-|Git|[Boolean](#boolean)| Gets or sets a value indicating whether to use Git Markdown format for URLs.   
-  Use -g or --git to use Git Markdown format.|
-|Readme|[Boolean](#boolean)| Call the Markdown file "README.md" instead of AssemblyName.md   
-  Use -r or --readme to call the Markdown file "README.md" instead of AssemblyName.md|
-|SettingsFile|[String](#string)| Gets or sets the settings file. Defaults to "settings.json".   
-  Use -f or --settings followed by the file path to specify the settings file to use.|
-|FilesToIgnore|[List`1](#list`1)| Wich xml files to ignore when converting to markdown|
-|NameSpacesToRemove|[List`1](#list`1)| Wich namespaces to ignore when converting to markdown|
+|InputFile|[String](#string)| Gets or sets the input XML file path. Use -i or --inputfile followed by the file path to specify the input XML file.|
+|ConsoleIn|[Boolean](#boolean)| Gets or sets a value indicating whether to read input from the console. Use --cin to read input from the console instead of a file.|
+|OutputFile|[String](#string)| Gets or sets the output markdown file path. Use -o or --outputfile followed by the file path to specify the output markdown file.|
+|SecondaryOutputDirectory|[String](#string)| Gets or sets the path to a secondary output directory. To copy to a network share for example. Use -l or --secondaryDir followed by the directory path to specify a secondary output directory.|
+|ConsoleOut|[Boolean](#boolean)| Gets or sets a value indicating whether to write output to the console. Use --cout to write output to the console instead of a file.|
+|UnexpectedTagAction|[UnexpectedTagActionEnum](#unexpectedtagactionenum)| Gets or sets the action to take on unexpected tags. Use -u or --unexpected followed by Accept, Warn, or Error to specify how to handle unexpected tags.|
+|SearchDirectory|[String](#string)| Gets or sets the search directory for XML files. Use -s or --search followed by the directory path to specify where to search for .xml files. This is used in combination with the -d or --directory argument.|
+|Directory|[String](#string)| Gets or sets the directory name to search for .xml files. Use -d or --directory followed by the directory name. This is used in combination with the -s or --search argument. Defaults to "Release".|
+|Git|[Boolean](#boolean)| Gets or sets a value indicating whether to use Git Markdown format for URLs. Use -g or --git to use Git Markdown format.|
+|Readme|[Boolean](#boolean)| Call the Markdown file "README.md" instead of AssemblyName.md Use -r or --readme to call the Markdown file "README.md" instead of AssemblyName.md|
+|SettingsFile|[String](#string)| Gets or sets the settings file. Defaults to "settings.json". Use -f or --settings followed by the file path to specify the settings file to use.|
+
+---
+## ROBdk97.XmlDocToMd.Settings
+
+ Json Settings file for the XmlDocToMd 
+
+
+
+#### Properties:
+|Name | Type | Description |
+|-----|------|------|
+|FilesToIgnore|[List‹String›](#System.Collections.Generic.List`1[System.String])| Wich xml files to ignore when converting to markdown|
+|NameSpacesToRemove|[List‹String›](#System.Collections.Generic.List`1[System.String])| Wich namespaces to ignore when converting to markdown|
 
 ---
 ## ROBdk97.XmlDocToMd.UnexpectedTagActionEnum

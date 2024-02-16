@@ -244,7 +244,25 @@ namespace ROBdk97.XmlDocToMd
             {
                 return [values[0], values[1], CleanUpTypeForUrl(type)];
             }
-            string displayAndUrl = string.Format("[{0}]({1})", retType.Name.Replace("[]", string.Empty), GenerateUrl(retType));
+            // try to get lists and the type of the list
+            if (retType.IsGenericType)
+            {
+                string collectionName = "";
+                if (retType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    collectionName = "List" + '‹' + retType.GetGenericArguments()[0].Name + '›';
+                }
+                else if (retType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+                {
+                    collectionName = "Dictionary" + '‹' + retType.GetGenericArguments()[0].Name + ", " + retType.GetGenericArguments()[1].Name + '›';
+                }
+                collectionName = $"[{collectionName}](#{retType})";
+                return [values[0], values[1], collectionName];
+            }
+            string displayAndUrl = string.Format(
+                "[{0}]({1})",
+                retType.Name.Replace("[]", string.Empty),
+                GenerateUrl(retType));
             displayAndUrl = CleanUpTypeForUrl(displayAndUrl);
             if (IsGitHub)
                 displayAndUrl = $"[{(retType.Name.Replace("[]", string.Empty))}](#{(retType.Name.Replace("[]", string.Empty).ToLowerInvariant())})";
@@ -712,7 +730,6 @@ namespace ROBdk97.XmlDocToMd
             if (!string.IsNullOrWhiteSpace(strings[0]))
                 strings[0] = "\n\n**{0}:**";
             return strings;
-
         }
     }
 }

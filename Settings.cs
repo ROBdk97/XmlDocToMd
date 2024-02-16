@@ -11,7 +11,7 @@ namespace ROBdk97.XmlDocToMd
     /// <summary>
     /// Json Settings file for the XmlDocToMd
     /// </summary>
-    internal class Settings
+    public class Settings
     {
         /// <summary>
         /// Wich xml files to ignore when converting to markdown
