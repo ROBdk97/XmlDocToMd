@@ -61,7 +61,11 @@ jobs:
           for dir in XmlDocToMd-*; do
             runtime="${dir#XmlDocToMd-}"
             file=$(find "$dir" -type f -name "*")
-            mv "$file" "${dir}/XmlDocToMd-$runtime"
+            if [[ "$runtime" == "win-x64" ]]; then
+              mv "$file" "${dir}/XmlDocToMd-$runtime.exe"
+            else
+              mv "$file" "${dir}/XmlDocToMd-$runtime"
+            fi
           done
 
       - name: Release
