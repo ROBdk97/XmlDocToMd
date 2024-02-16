@@ -6,6 +6,7 @@
 		<ApplicationRevision>0</ApplicationRevision>
 		<ApplicationVersion>1.0.0.%2a</ApplicationVersion>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<RuntimeIdentifiers>win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
 		<Platforms>AnyCPU;x64</Platforms>
 	</PropertyGroup>
 	<ItemGroup>

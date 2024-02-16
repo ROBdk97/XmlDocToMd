@@ -9,6 +9,7 @@ namespace ROBdk97.XmlDocToMd
     /// <para>Review the <see cref="Options"/> class for an enumeration of configurable parameters impacting conversion behavior.</para>
     /// <para>See supported XML documentation tags see <a href="#supported-xml-documentation-tags">here</a>.</para>
     /// <para>To add a description of the assembly, add a summary tag to a <a href="AssemblyDoc.cs">AssemblyDoc</a> class.</para>
+    /// <para>There is also a settings.json <a href="settings.json">Example</a> to filter out Files and Namespaces</para>
     /// <example>
     /// The following examples demonstrate various ways to use the XmlDocToMd tool to convert XML documentation to Markdown format, showcasing the flexibility and range of options available:
     /// 
