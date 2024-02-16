@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<ApplicationRevision>0</ApplicationRevision>
+		<ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+	</PropertyGroup>
+	<ItemGroup>
+	  <Compile Remove="doc\**" />
+	  <EmbeddedResource Remove="doc\**" />
+	  <None Remove="doc\**" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Remove="README.md" />
+	  <None Remove="settings.json" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="CommandLineParser">
+			<Version>2.9.1</Version>
+		</PackageReference>
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+	</ItemGroup>	
+	<PropertyGroup>
+		<AssemblyTitle>ROBdk97.XmlDocToMd</AssemblyTitle>
+		<Authors>ROBdk97</Authors>
+		<Author>ROBdk97</Author>
+		<Product>ROBdk97.XmlDocToMd</Product>
+		<Copyright>Copyright ©  2023</Copyright>
+		<AssemblyVersion>0.3.%2a</AssemblyVersion>
+		<AssemblyName>XmlDocToMd</AssemblyName>
+		<StartupObject>ROBdk97.XmlDocToMd.Program</StartupObject>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+	</PropertyGroup>
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+	  <Exec Command="IF &quot;$(ConfigurationName)&quot; == &quot;Release&quot; (&#xD;&#xA;call &quot;$(TargetDir)$(TargetName).exe&quot;  -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r &#xD;&#xA;)" />
+	</Target>
+
+</Project>

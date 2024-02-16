@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ROBdk97.XmlDocToMd": {
+      "commandName": "Project",
+      "commandLineArgs": " -s \"E:\\Projekte\\VisualStudio\\ROBdk97.XmlDocToMd\" -d \"Debug\" -o \"E:\\Projekte\\VisualStudio\\ROBdk97.XmlDocToMd\" -g -r"
+    }
+  }
+}
