@@ -37,8 +37,9 @@
 		<StartupObject>ROBdk97.XmlDocToMd.Program</StartupObject>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
-	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-	  <Exec Command="IF &quot;$(ConfigurationName)&quot; == &quot;XMLtoMD&quot; (&#xD;&#xA;call &quot;$(TargetDir)$(TargetName).exe&quot;  -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r &#xD;&#xA;)" />
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'XMLtoMD'">
+		<Exec Command="call &quot;$(TargetDir)$(TargetName).exe&quot; -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r" />
 	</Target>
+
 
 </Project>
