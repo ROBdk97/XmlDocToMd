@@ -43,7 +43,7 @@ namespace ROBdk97.XmlDocToMd
     /// XmlDocToMd.exe -i "C:\Docs\input.xml" -o "C:\Docs\output.md" -r
     /// </code>
     /// 
-    /// <b>Visual Studio post-build event example to convert XML documentation to Markdown when building a project in Release mode:</b>
+    /// <b>Visual Studio post-build event example to convert XML documentation to Markdown when building a project with custom configuration:</b>
     /// <code lang="xml"><![CDATA[
 	///<Target Name = "PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'XMLtoMD'">
 	///	<Exec Command = "call &quot;$(TargetDir)$(TargetName).exe&quot; -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r" />
