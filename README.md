@@ -4,7 +4,8 @@
  Review the [Options](#robdk97xmldoctomdoptions) class for an enumeration of configurable parameters impacting conversion behavior.    
  See supported XML documentation tags see [here](#supported-xml-documentation-tags).    
  To add a description of the assembly, add a summary tag to a [AssemblyDoc](AssemblyDoc.cs) class.    
- There is also a settings.json [Example](settings.json) to filter out Files and Namespaces  
+ There is also a settings.json [Example](settings.json) to filter out Files and Namespaces    
+ Notice: As this tool uses Reflection to add additional information to the XML documentation, the DLL´s of the project must be in the same directory as the XML documentation files.  
 ##### Example
  The following examples demonstrate various ways to use the XmlDocToMd tool to convert XML documentation to Markdown format, showcasing the flexibility and range of options available: Basic conversion of a single XML file to Markdown: 
 ```bat
