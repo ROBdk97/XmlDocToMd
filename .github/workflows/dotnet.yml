@@ -28,10 +28,10 @@ jobs:
             file_name: XmlDocToMd
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -42,7 +42,7 @@ jobs:
         run: dotnet publish ./ROBdk97.XmlDocToMd.csproj -f ${{ matrix.framework }} -r ${{ matrix.runtime }} -c Release --no-restore -o publish/${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained
 
       - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: XmlDocToMd-${{ matrix.runtime }}
           path: publish/${{ matrix.runtime }}/${{ matrix.file_name }}
@@ -52,10 +52,10 @@ jobs:
     needs: build-and-release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: release
       - name: Rename files based on runtime
