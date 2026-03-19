@@ -1,200 +1,250 @@
-﻿using CommandLine;
-using System;
-using System.Collections.Generic;
+using CommandLine;
+using Microsoft.Extensions.DependencyInjection;
+using ROBdk97.XmlDocToMd.Cli;
+using ROBdk97.XmlDocToMd.Conversion;
+using ROBdk97.XmlDocToMd.Infrastructure;
+using ROBdk97.XmlDocToMd.Logging;
+using ROBdk97.XmlDocToMd.Rendering;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Xml.Linq;
 
-namespace ROBdk97.XmlDocToMd
+namespace ROBdk97.XmlDocToMd;
+
+internal static class Program
 {
-    class Program
+    public static void Main(string[] args)
     {
-        static DateTime startTime;
-        internal static Settings settings;
-
-        public static void Main(string[] args)
+        if (args.Length == 0)
         {
-            if (args.Length == 0)
-            {
-                args = ["--help"];
-            }
-            startTime = DateTime.Now;
-            Parser.Default
-                .ParseArguments<Options>(args)
-                .WithParsed(
-                    o =>
-                    {
-                        settings = SettingsExt.LoadSettings(o.SettingsFile);
-                        if (o.SearchDirectory != null && o.OutputFile != null)
-                        { // If the user specified a search directory, directory (default (OutputRB)) and output file (Directory),
-                            // then search the directory for all .xml files in the directory and subdirectories and convert them to .md files in the output directory.
-
-                            // if not ending with a backslash, add one.
-                            if (!o.SearchDirectory.EndsWith('\\'))
-                                o.SearchDirectory += "\\";
-                            if (!o.OutputFile.EndsWith('\\'))
-                                o.OutputFile += "\\";
-                            // if the search directory does not exist, print an error and exit.
-                            if (!Directory.Exists(o.SearchDirectory))
-                            {
-                                Console.WriteLine($"Search directory \"{o.SearchDirectory}\" does not exist.");
-                                Debug.WriteLine($"Search directory \"{o.SearchDirectory}\" does not exist.");
-                                return;
-                            }
-                            // if the output directory does not exist, create it.
-                            if (!Directory.Exists(o.OutputFile))
-                                Directory.CreateDirectory(o.OutputFile);
-                            Console.WriteLine($"Starting XML to Markdown conversion to \"{o.OutputFile}\".");
-                            Debug.WriteLine($"Starting XML to Markdown conversion to \"{o.OutputFile}\".");
-                            Console.WriteLine($"Searching \"{o.SearchDirectory}\" for \"{o.Directory}\" directories.");
-                            Debug.WriteLine($"Searching \"{o.SearchDirectory}\" for \"{o.Directory}\" directories.");
-                            string[] releaseFolders = Directory.GetDirectories(
-                                o.SearchDirectory,
-                                o.Directory,
-                                SearchOption.AllDirectories);
-                            List<string> files = [];
-                            foreach (string rf in releaseFolders)
-                            {
-                                string[] filesInFolder = Directory.GetFiles(rf, "*.xml", SearchOption.AllDirectories);
-                                foreach (string file in filesInFolder)
-                                {
-                                    if (settings.FilesToIgnore.Contains(Path.GetFileName(file)))
-                                        continue;
-                                    string outputFile = $"{o.OutputFile}{Path.GetFileName(file).Replace(".xml", ".md")}";
-                                    if (o.Readme)
-                                        outputFile = $"{o.OutputFile}README.md";
-                                    Console.WriteLine($"Converting {file} to {outputFile}");
-                                    Debug.WriteLine($"Converting {file} to {outputFile}");
-                                    RunXmlToMarkdown(file, outputFile, o);
-                                    files.Add(Path.GetFileName(file));
-                                }
-                            }
-                            Console.WriteLine("Conversion to Markdown done.");
-                            Debug.WriteLine("Conversion to Markdown done.");
-                            return;
-                        }
-                        else if (o.InputFile != null && o.OutputFile != null)
-                        {
-                            RunXmlToMarkdown(o.InputFile, o.OutputFile, o);
-                        }
-                    });
-            Console.WriteLine($"Total time: {DateTime.Now - startTime}");
-            Debug.WriteLine($"Total time: {DateTime.Now - startTime}");
+            args = ["--help"];
         }
 
-        /// <summary>
-        /// Main function to convert XML to Markdown.
-        /// </summary>
-        /// <param name="input"></param>
-        /// <param name="output"></param>
-        /// <param name="options"></param>
-        private static void RunXmlToMarkdown(string input, string output, Options options)
-        {
-            XmlToMarkdown.CurrentXmlFile = input;
-            var inReader = options.ConsoleIn ? Console.In : new StreamReader(input);
-            using (var outWriter = options.ConsoleIn ? Console.Out : new StreamWriter(output))
-            {
-                var xml = inReader.ReadToEnd();
-                var doc = XDocument.Parse(xml);
+        IServiceProvider serviceProvider = new ServiceCollection()
+            .AddXmlDocToMd()
+            .BuildServiceProvider();
 
-                XmlToMarkdown.IsGitHub = options.Git;
-                // move the AssemblyDoc node to the assembly node.
-                MoveAssemblyDoc(doc);
-                // Remove unwanted NameSpaces
-                RemoveNameSpaces(doc);
-                // Add a returns tag to all methods that dont have one.
-                AddReturnsToMethods(doc);
-                // convert the XML to Markdown.
-                var context = new ConversionContext()
+        DateTime startTime = DateTime.Now;
+        Parser.Default
+            .ParseArguments<Options>(args)
+            .WithParsed(
+                options =>
                 {
-                    UnexpectedTagAction = options.UnexpectedTagAction,
-                    WarningLogger = new TextWriterWarningLogger(Console.Error),
-                };
-                var md = doc.Root.ToMarkDown(context);
-                // add a footer to the markdown.
-                md += $"\n\n---\n\nGenerated by [XmlDocToMd](https://github.com/ROBdk97/XmlDocToMd) by [ROBdk97](https://github.com/ROBdk97)";
-                outWriter.Write(md);
-                outWriter.Close();
-            }
+                    Settings settings = SettingsExt.LoadSettings(options.SettingsFile);
+                    if (options.SearchDirectory != null && options.OutputFile != null)
+                    {
+                        if (!options.SearchDirectory.EndsWith('\\'))
+                            options.SearchDirectory += "\\";
+                        if (!options.OutputFile.EndsWith('\\'))
+                            options.OutputFile += "\\";
+                        if (!Directory.Exists(options.SearchDirectory))
+                        {
+                            Console.WriteLine($"Search directory \"{options.SearchDirectory}\" does not exist.");
+                            Debug.WriteLine($"Search directory \"{options.SearchDirectory}\" does not exist.");
+                            return;
+                        }
+                        if (!Directory.Exists(options.OutputFile))
+                            Directory.CreateDirectory(options.OutputFile);
+                        Console.WriteLine($"Starting XML to Markdown conversion to \"{options.OutputFile}\".");
+                        Debug.WriteLine($"Starting XML to Markdown conversion to \"{options.OutputFile}\".");
+                        Console.WriteLine($"Searching \"{options.SearchDirectory}\" for \"{options.Directory}\" directories.");
+                        Debug.WriteLine($"Searching \"{options.SearchDirectory}\" for \"{options.Directory}\" directories.");
+                        string[] releaseFolders = Directory.GetDirectories(
+                            options.SearchDirectory,
+                            options.Directory,
+                            SearchOption.AllDirectories);
+
+                        var conversionTargets = releaseFolders
+                            .SelectMany(rf => Directory.GetFiles(rf, "*.xml", SearchOption.AllDirectories))
+                            .Where(file => !settings.FilesToIgnore.Contains(Path.GetFileName(file)))
+                            .Where(file => !IsInDirectory(file, "obj"))
+                            .Select(file => new
+                            {
+                                InputFile = file,
+                                OutputFile = options.Readme
+                                    ? Path.Combine(options.OutputFile, "README.md")
+                                    : Path.Combine(options.OutputFile, Path.GetFileNameWithoutExtension(file) + ".md")
+                            })
+                            .GroupBy(item => item.OutputFile, StringComparer.OrdinalIgnoreCase)
+                            .Select(group => group
+                                .OrderByDescending(item => IsInDirectory(item.InputFile, "bin"))
+                                .ThenByDescending(item => File.GetLastWriteTimeUtc(item.InputFile))
+                                .ThenBy(item => item.InputFile, StringComparer.OrdinalIgnoreCase)
+                                .First())
+                            .OrderBy(item => item.OutputFile, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        foreach (var target in conversionTargets)
+                        {
+                            Console.WriteLine($"Converting {target.InputFile} to {target.OutputFile}");
+                            Debug.WriteLine($"Converting {target.InputFile} to {target.OutputFile}");
+                            RunXmlToMarkdown(target.InputFile, target.OutputFile, options, serviceProvider, settings);
+                        }
+                        Console.WriteLine("Conversion to Markdown done.");
+                        Debug.WriteLine("Conversion to Markdown done.");
+                        return;
+                    }
+                    else if (options.InputFile != null && options.OutputFile != null)
+                    {
+                        RunXmlToMarkdown(options.InputFile, options.OutputFile, options, serviceProvider, settings);
+                    }
+                });
+        Console.WriteLine($"Total time: {DateTime.Now - startTime}");
+        Debug.WriteLine($"Total time: {DateTime.Now - startTime}");
+    }
+
+    private static bool IsInDirectory(string path, string directoryName)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directoryName))
+        {
+            return false;
+        }
+
+        var parts = path.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+
+        return parts.Any(part => part.Equals(directoryName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Main function to convert XML to Markdown.
+    /// </summary>
+    /// <param name="input"></param>
+    /// <param name="output"></param>
+    /// <param name="options"></param>
+    /// <param name="serviceProvider"></param>
+    /// <param name="settings"></param>
+    private static void RunXmlToMarkdown(
+        string input,
+        string output,
+        Options options,
+        IServiceProvider serviceProvider,
+        Settings settings)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        ReflectionHelper.SetCurrentXmlFile(input);
+
+        var inReader = options.ConsoleIn ? Console.In : new StreamReader(input);
+        using var outWriter = options.ConsoleIn ? Console.Out : new StreamWriter(output);
+
+        var xml = inReader.ReadToEnd();
+        var doc = XDocument.Parse(xml);
+
+        // move the AssemblyDoc node to the assembly node.
+        MoveAssemblyDoc(doc);
+        // Remove unwanted NameSpaces
+        RemoveNameSpaces(doc, settings);
+        // Add a returns tag to all methods that dont have one.
+        AddReturnsToMethods(doc);
+
+        // convert the XML to Markdown.
+        IWarningLogger warningLogger = serviceProvider.GetRequiredService<IWarningLogger>();
+        ITagRendererRegistry registry = serviceProvider.GetRequiredService<ITagRendererRegistry>();
+
+        var context = new ConversionContext()
+        {
+            UnexpectedTagAction = options.UnexpectedTagAction,
+            WarningLogger = warningLogger,
+            Registry = registry,
+            CurrentXmlFile = input,
+            IsGitHub = options.Git,
+        };
+
+        var md = doc.Root?.ToMarkDown(context) ?? string.Empty;
+        // add a footer to the markdown.
+        md += "\n\n---\n\nGenerated by [XmlDocToMd](https://github.com/ROBdk97/XmlDocToMd) by [ROBdk97](https://github.com/ROBdk97)";
+        outWriter.Write(md);
+        outWriter.Close();
+
+        // Copy to secondary output if specified
+        if (!string.IsNullOrWhiteSpace(options.SecondaryOutputDirectory))
+        {
             try
             {
-                if (!string.IsNullOrWhiteSpace(options.SecondaryOutputDirectory))
-                    File.Copy(output, $"{options.SecondaryOutputDirectory}\\docs\\{Path.GetFileName(output)}", true);
+                File.Copy(output, $"{options.SecondaryOutputDirectory}\\docs\\{Path.GetFileName(output)}", true);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error copying file to secondary output directory: {ex.Message}");
             }
         }
+    }
 
-        private static void MoveAssemblyDoc(XDocument doc)
+    private static void MoveAssemblyDoc(XDocument doc)
+    {
+        // try to find all members with AssemblyDoc in their name and add the content to the assembly node.
+        var members = doc.Root?
+            .Element("members")?
+            .Elements("member")
+            .Where(member => member.Attribute("name")?.Value.Contains("AssemblyDoc") == true)
+            .ToList();
+        if (members is null) return;
+        foreach (var member in members)
         {
-            // try to find all members with AssemblyDoc in their name and add the content to the assembly node.
-            var members = doc.Root
-                .Element("members")
-                .Elements("member")
-                .Where(member => member.Attribute("name").Value.Contains("AssemblyDoc"))
-                .ToList();  // ToList is necessary because we're modifying the collection
+            // get the assembly node.
+            var assembly = doc.Root?.Element("assembly");
+            if (assembly is null) continue;
+            // add all the content of the AssemblyDoc Node to the assembly node.
+            assembly.Add(member.Nodes());
+            // remove the AssemblyDoc Node
+            member.Remove();
+        }
+    }
 
-            foreach (var member in members)
+    /// <summary>
+    /// Add a Returns Tag to all Methods that dont have a return value.
+    /// </summary>
+    /// <param name="doc"></param>
+    private static void AddReturnsToMethods(XDocument doc)
+    {
+        // try to find all members with a name starting with M: and add a returns tag if there is none.
+        var members = doc.Root?
+            .Element("members")?
+            .Elements("member")
+            .Where(member => member.Attribute("name")?.Value.StartsWith("M:") == true)
+            .ToList();
+        if (members is null) return;
+        foreach (var member in members)
+        {
+            // if the member does not have a returns tag, add one.
+            if (member.Element("returns") is null)
             {
-                // get the assembly node.
-                var assembly = doc.Root.Element("assembly");
-                // add all the content of the AssemblyDoc Node to the assembly node.
-                assembly.Add(member.Nodes());
-                // remove the AssemblyDoc Node
-                member.Remove();
+                member.Add(new XElement("returns", string.Empty));
             }
         }
+    }
 
-        /// <summary>
-        /// Add a Returns Tag to all Methods that dont have a return value.
-        /// </summary>
-        /// <param name="doc"></param>
-        private static void AddReturnsToMethods(XDocument doc)
-        {
-            // try to find all members with a name starting with M: and add a returns tag if there is none.
-            var members = doc.Root
-                .Element("members")
-                .Elements("member")
-                .Where(member => member.Attribute("name").Value.StartsWith("M:"))
-                .ToList();  // ToList is necessary because we're modifying the collection
-            foreach (var member in members)
+    /// <summary>
+    /// Remove all Nodes containing EXAMPLE XML Doc
+    /// </summary>
+    private static void RemoveNameSpaces(XDocument doc, Settings settings)
+    {
+        if (doc.Root is null) return;
+
+        var membersElement = doc.Root.Element("members");
+        if (membersElement is null) return;
+
+        // Pre-compute the set of all namespaces to remove for faster checks
+        var namespacesToRemove = new HashSet<string>(settings.NameSpacesToRemove);
+
+        // Find all member elements to remove in a single iteration
+        var nodesToRemove = membersElement
+            .Elements("member")
+            .Where(member =>
             {
-                // if the member does not have a returns tag, add one.
-                if (member.Element("returns") == null)
-                {
-                    member.Add(new XElement("returns", string.Empty));
-                }
-            }
-        }
+                var name = member.Attribute("name")?.Value;
+                return name != null && namespacesToRemove.Any(ns => name.Contains(ns));
+            })
+            .ToList();
 
-        /// <summary>
-        /// Remove all Nodes containing EXAMPLE XML Doc
-        /// </summary>
-        private static void RemoveNameSpaces(XDocument doc)
+        // Remove all identified nodes.
+        foreach (var node in nodesToRemove)
         {
-            if (doc.Root == null) return;
-
-            var membersElement = doc.Root.Element("members");
-            if (membersElement == null) return;
-
-            // Pre-compute the set of all namespaces to remove for faster checks
-            var namespacesToRemove = new HashSet<string>(settings.NameSpacesToRemove);
-
-            // Find all member elements to remove in a single iteration
-            var nodesToRemove = membersElement
-                .Elements("member")
-                .Where(member => member.Attribute("name") != null &&
-                                 namespacesToRemove.Any(ns => member.Attribute("name").Value.Contains(ns)))
-                .ToList();
-
-            // Remove all identified nodes.
-            foreach (var node in nodesToRemove)
-            {
-                node.Remove();
-            }
+            node.Remove();
         }
     }
 }
