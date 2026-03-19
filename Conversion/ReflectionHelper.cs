@@ -10,23 +10,23 @@ namespace ROBdk97.XmlDocToMd.Conversion;
 /// </summary>
 internal static class ReflectionHelper
 {
-    // MIGRATED FROM STATIC: ROBdk97.XmlDocToMd.ReflectionHelper — should move to ConversionContext or a per-conversion scope
+
     private static readonly Dictionary<string, Assembly> _assemblyCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // MIGRATED FROM STATIC: ROBdk97.XmlDocToMd.ReflectionHelper — should move to ConversionContext or a per-conversion scope
+
     private static readonly Dictionary<string, Type> _typeCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // MIGRATED FROM STATIC: ROBdk97.XmlDocToMd.ReflectionHelper — should move to ConversionContext or a per-conversion scope
+
     private static readonly Dictionary<string, Type?> _returnTypeCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // MIGRATED FROM STATIC: ROBdk97.XmlDocToMd.ReflectionHelper — should move to ConversionContext or a per-conversion scope
+
     private static readonly Dictionary<string, bool> _isPublicCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // MIGRATED FROM STATIC: ROBdk97.XmlDocToMd.ReflectionHelper — mirrors ConversionContext.CurrentXmlFile; should be removed once callers pass ConversionContext
+
     private static string _currentDllPath = string.Empty;
 
     /// <summary>
