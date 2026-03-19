@@ -8,6 +8,9 @@
 		<RuntimeIdentifiers>win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
 		<Platforms>AnyCPU;x64</Platforms>
 		<Configurations>Debug;Release;XMLtoMD</Configurations>
+		<Nullable>enable</Nullable>
+		<LangVersion>14</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="doc\**" />
@@ -17,6 +20,14 @@
 	<ItemGroup>
 		<None Remove="README.md" />
 		<None Remove="settings.json" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Include=".github\upgrades\scenarios\dotnet-version-upgrade\plan.md" />
+	  <None Include=".github\upgrades\scenarios\dotnet-version-upgrade\scenario-instructions.md" />
+	  <None Include=".github\upgrades\scenarios\dotnet-version-upgrade\tasks.md" />
+	  <None Include=".github\upgrades\scenarios\dotnet-version-upgrade\tasks\01-project-upgrade\progress-detail.md" />
+	  <None Include=".github\upgrades\scenarios\dotnet-version-upgrade\tasks\01-project-upgrade\task.md" />
+	  <None Include=".github\upgrades\scenarios\dotnet-version-upgrade\tasks\02-test-and-finalize\progress-detail.md" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommandLineParser">
@@ -35,7 +46,7 @@
 		<StartupObject>ROBdk97.XmlDocToMd.Program</StartupObject>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
-	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'XMLtoMD'">
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'XMLtoMD' and '$(TargetFramework)' == 'net10.0-windows'">
 		<Exec Command="call &quot;$(TargetDir)$(TargetName).exe&quot; -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r" />
 	</Target>
 </Project>
