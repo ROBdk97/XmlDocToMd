@@ -16,12 +16,15 @@ jobs:
         include:
           - os: windows-latest
             runtime: win-x64
+            framework: net10.0-windows
             file_name: XmlDocToMd.exe
           - os: ubuntu-latest
             runtime: linux-x64
+            framework: net10.0
             file_name: XmlDocToMd
           - os: ubuntu-latest
             runtime: linux-arm64
+            framework: net10.0
             file_name: XmlDocToMd
 
     steps:
@@ -36,7 +39,7 @@ jobs:
         run: dotnet restore ./ROBdk97.XmlDocToMd.csproj
 
       - name: Publish
-        run: dotnet publish ./ROBdk97.XmlDocToMd.csproj -r ${{ matrix.runtime }} -c Release --no-restore -o publish/${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained
+        run: dotnet publish ./ROBdk97.XmlDocToMd.csproj -f ${{ matrix.framework }} -r ${{ matrix.runtime }} -c Release --no-restore -o publish/${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4
