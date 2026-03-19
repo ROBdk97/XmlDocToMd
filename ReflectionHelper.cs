@@ -47,7 +47,7 @@ namespace ROBdk97.XmlDocToMd
                 if (method == null)
                 {
                     //remove the parameters
-                    methodName = methodName.Substring(0, methodName.IndexOf('('));
+                    methodName = methodName[..methodName.IndexOf('(')];
                     method = type?.GetMethods().FirstOrDefault(m => m.Name == methodName);
                 }
                 return method?.ReturnType ?? null;
@@ -132,8 +132,8 @@ namespace ROBdk97.XmlDocToMd
             var lastDotIndex = fullClassName.LastIndexOf('.');
             if (lastDotIndex == -1) return null;
 
-            var className = fullClassName.Substring(0, lastDotIndex);
-            var nestedClassName = fullClassName.Substring(lastDotIndex + 1);
+            var className = fullClassName[..lastDotIndex];
+            var nestedClassName = fullClassName[(lastDotIndex + 1)..];
 
             return _assembly.GetType(className)?.GetNestedType(nestedClassName);
         }
@@ -203,7 +203,7 @@ namespace ROBdk97.XmlDocToMd
                         return true;
                     MethodInfo method = type?.GetMethod(name);
                     if (name.Contains('('))
-                        name = name.Substring(0, name.IndexOf('('));
+                        name = name[..name.IndexOf('(')];
                     method = type?.GetMethods().FirstOrDefault(m => m.Name == name);
                     if (method != null)
                         return method.IsPublic;
@@ -246,10 +246,10 @@ namespace ROBdk97.XmlDocToMd
                     if (className.Contains(".#"))
                         return true; // Constructor is always public
                     else
-                        className = className.Remove(className.LastIndexOf('.'));
+                        className = className[..className.LastIndexOf('.')];
                 // Remove class name from attribute name
                 if (type != "T")
-                    attributeName = attributeName.Remove(0, className.Length + 1);
+                    attributeName = attributeName[(className.Length + 1)..];
                 else
                     attributeName = null;
                 return IsPublic(className, attributeName, type);

@@ -45,7 +45,7 @@ namespace ROBdk97.XmlDocToMd
                 .RemoveRedundantLineBreaks();
         }
 
-        private static Dictionary<string, string> _MemberNamePrefixDict = new Dictionary<string, string>(
+        private static readonly Dictionary<string, string> _MemberNamePrefixDict = new(
             StringComparer.OrdinalIgnoreCase)
         {
             ["F:"] = "Field",
@@ -81,7 +81,7 @@ namespace ROBdk97.XmlDocToMd
                         return string.Empty;
                     }
                     if (!_MemberNamePrefixDict.TryGetValue(
-                        el.Attribute("name").Value.Substring(0, 2),
+                        el.Attribute("name").Value[..2],
                         out string expandedName))
                     {
                         expandedName = "none";
@@ -215,7 +215,7 @@ namespace ROBdk97.XmlDocToMd
 
 
             if (node.NodeType == XmlNodeType.Text)
-                return Regex.Replace(((XText)node).Value.Replace('\n', ' '), @"\s+", " ");
+                return WhitespaceRegex().Replace(((XText)node).Value.Replace('\n', ' '), " ");
 
             return string.Empty;
         }
@@ -278,14 +278,14 @@ namespace ROBdk97.XmlDocToMd
             {
                 string temp = s.Split('#')[1];
                 if (isRef)
-                    temp.Replace("@", string.Empty);
+                    temp = temp.Replace("@", string.Empty);
                 if (isArray)
                     s = s.Replace("[]", string.Empty);
                 if (temp.Contains(')'))
                     temp = temp.Split(')')[0];
                 if (_types.ContainsKey(temp))
                 {
-                    temp.Replace("System.", string.Empty);
+                    temp = temp.Replace("System.", string.Empty);
                     s = _types[temp.ToLower()];
                 }
                 if (isRef)
@@ -296,7 +296,7 @@ namespace ROBdk97.XmlDocToMd
             return s;
         }
 
-        private static readonly Dictionary<string, string> _types = new Dictionary<string, string>
+        private static readonly Dictionary<string, string> _types = new()
         {
             ["string"] = "string",
             ["object"] = "object",
@@ -313,22 +313,22 @@ namespace ROBdk97.XmlDocToMd
         {
             string[] values = ExtractNameAndBodyFromMember(node, context);
             if (values.Length > 0 && !string.IsNullOrWhiteSpace(values[0]))
-                values[0] = $"**{values[0]}:**";
+                values[0] = $"**{values[0]}:";
             return values;
         }
 
         internal static string[] GetReturnType(XElement node, ConversionContext context)
         {
-            string retTypeName = string.Empty;
+            string retTypeName;
             string className = node.Parent.Attribute("name")?.Value;
             string type = className.Split(':')[0];
             className = className.Split('(')[0].Split(':')[1];
             // Remove Method name from class name
             if (type == "M" || type == "P" || type == "F")
-                className = className.Remove(className.LastIndexOf('.'));
+                className = className[..className.LastIndexOf('.')];
             // Get method name
             string methodName = node.Parent.Attribute("name").Value.Split(':')[1];
-            methodName = methodName.Remove(0, className.Length + 1);
+            methodName = methodName[(className.Length + 1)..];
             // Check if the method is a constructor
             if (methodName.Contains("#ctor"))
             {
@@ -348,8 +348,7 @@ namespace ROBdk97.XmlDocToMd
             _types.TryGetValue(retTypeName.ToLower(), out string newRetTypeName);
             if (newRetTypeName != null)
                 retTypeName = newRetTypeName;
-            else if (retTypeName is null)
-                retTypeName = node.Value;
+            else retTypeName ??= node.Value;
             string[] values = [retTypeName];
             return values;
         }
@@ -375,7 +374,7 @@ namespace ROBdk97.XmlDocToMd
             // if name contains ( then remove it and everything after it
             if (name.Contains('('))
             {
-                name = name.Remove(name.IndexOf('('));
+                name = name[..name.IndexOf('(')];
             }
             // remove the assembly name from the name
             //name = name.RemoveNamespace(context.AssemblyName);
@@ -404,7 +403,7 @@ namespace ROBdk97.XmlDocToMd
             // remove everything after ` in the name
             if (name.Contains('`'))
             {
-                name = name.Remove(name.IndexOf('`'));
+                name = name[..name.IndexOf('`')];
             }
             // Get the "param" nodes and add them to the name
             name = GetParams(node, context, name, parameters);
@@ -416,7 +415,7 @@ namespace ROBdk97.XmlDocToMd
             if (isPropertyOrField)
             {
                 //Remove all the stuff before the last .
-                name = name.Substring(name.LastIndexOf('.') + 1);
+                name = name[(name.LastIndexOf('.') + 1)..];
             }
             return [name, node.Nodes().ToMarkDown(context)];
         }
@@ -435,14 +434,14 @@ namespace ROBdk97.XmlDocToMd
                 // get one decimal int number after the `
                 int genericCount = int.Parse(name.Substring(name.IndexOf('`') + 1, 1));
                 string generics = "‹";
-                foreach (XElement el in node.Nodes())
+                foreach (XElement el in node.Nodes().Cast<XElement>())
                 {
                     if (el.Name.LocalName != "typeparam")
                         continue;
                     generics += el?.Attribute("name").Value + ", ";
                 }
                 if (generics.Length > 2)
-                    generics = generics.Remove(generics.Length - 2);
+                    generics = generics[..^2];
                 generics += "›";
                 if (generics == "‹›")
                 {
@@ -511,7 +510,7 @@ namespace ROBdk97.XmlDocToMd
                     }
                     // remove all the stuff before the last .
                     if (type.Contains('.'))
-                        type = type.Substring(type.LastIndexOf('.') + 1);
+                        type = type[(type.LastIndexOf('.') + 1)..];
                     param += $"{type} {paramNodeName}";
                 }
                 // if the param is not the last add a comma
@@ -562,7 +561,7 @@ namespace ROBdk97.XmlDocToMd
             string body = node.Nodes().ToMarkDown(context);
             if (string.IsNullOrWhiteSpace(body))
             {
-                body = char.ToUpper(name[0]) + name.Substring(1);
+                body = char.ToUpper(name[0]) + name[1..];
             }
             return [name, body];
         }
@@ -586,9 +585,9 @@ namespace ROBdk97.XmlDocToMd
                 {
                     var parameters = display.Split('(').Last().Split(')').First().Split(',');
                     // remove everything to the right including (
-                    display = display.Substring(0, display.IndexOf('('));
+                    display = display[..display.IndexOf('(')];
                     // remove everything to the left including the last .
-                    display = display.Substring(display.LastIndexOf('.') + 1);
+                    display = display[(display.LastIndexOf('.') + 1)..];
                     // add the () back with the params in the middle
                     display = GetParams(member, context, display, parameters);
                 }
@@ -596,7 +595,7 @@ namespace ROBdk97.XmlDocToMd
             else if (display.Contains("M:"))
             {
                 // remove all the stuff before the last .
-                display = display.Substring(display.LastIndexOf('.') + 1);
+                display = display[(display.LastIndexOf('.') + 1)..];
                 if (!display.Contains('('))
                 {
                     display += @"()";
@@ -605,15 +604,15 @@ namespace ROBdk97.XmlDocToMd
             else
             {
                 // remove everything to the left including the last .
-                display = display.Substring(display.LastIndexOf('.') + 1);
+                display = display[(display.LastIndexOf('.') + 1)..];
             }
 
 
             // Remove everything after ` in the name and display
             if (url.Contains('`'))
             {
-                url = name.Remove(url.IndexOf('`'));
-                display = display.Remove(display.IndexOf('`'));
+                url = name[..url.IndexOf('`')];
+                display = display[..display.IndexOf('`')];
             }
             if (url.Contains("T:"))
             {
@@ -633,7 +632,7 @@ namespace ROBdk97.XmlDocToMd
             }
             if (!IsGitHub)
                 url = url.RemoveNamespace(context.AssemblyName);
-            // Replace "T: with ""
+            // Replace "T:with ""
             url = url.Replace("N:", string.Empty);
             if (name.Contains("M:"))
             {
@@ -659,22 +658,22 @@ namespace ROBdk97.XmlDocToMd
 
         internal static string ToCodeBlock(this string s)
         {
-            var lines = s.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var lines = s.Split(['\n'], StringSplitOptions.RemoveEmptyEntries);
             if (lines.Length == 0)
                 return string.Empty;
             var blank = lines[0].TakeWhile(x => x == ' ').Count() - 4;
-            return string.Join("\n", lines.Select(x => new string(x.SkipWhile((y, i) => i < blank).ToArray())))
+            return string.Join("\n", lines.Select(x => new string([.. x.SkipWhile((y, i) => i < blank)])))
                 .TrimEnd();
         }
 
-        internal static string RemoveRedundantLineBreaks(this string s) { return Regex.Replace(s, @"\n\n\n+", "\n\n"); }
+        internal static string RemoveRedundantLineBreaks(this string s) { return ExcessiveLineBreaksRegex().Replace(s, "\n\n"); }
 
         internal static string[] ExtractName(XElement x, ConversionContext context)
         {
             string[] strings = [string.Empty];
             strings[0] = x.Parent.Attribute("name")?.Value;
             // remove all the stuff before the last .
-            strings[0] = strings[0].Substring(strings[0].LastIndexOf('.') + 1);
+            strings[0] = strings[0][(strings[0].LastIndexOf('.') + 1)..];
             return strings;
         }
 
@@ -690,7 +689,7 @@ namespace ROBdk97.XmlDocToMd
             // Remove everything after ` in the url
             if (url.Contains('`'))
             {
-                url = type.Name.Remove(url.IndexOf('`'));
+                url = type.Name[..url.IndexOf('`')];
             }
             // add the namespace to the url
             url = type.Namespace + "." + url;
@@ -731,5 +730,10 @@ namespace ROBdk97.XmlDocToMd
                 strings[0] = "\n\n**{0}:**";
             return strings;
         }
+
+        [GeneratedRegex(@"\s+")]
+        private static partial Regex WhitespaceRegex();
+        [GeneratedRegex(@"\n\n\n+")]
+        private static partial Regex ExcessiveLineBreaksRegex();
     }
 }
