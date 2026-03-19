@@ -11,6 +11,9 @@ namespace ROBdk97.XmlDocToMd.Conversion;
 /// </summary>
 internal static partial class XmlToMarkdown
 {
+    [GeneratedRegex("[^a-z0-9\\s-]")]
+    private static partial Regex AnchorInvalidCharsRegex();
+
     /// <summary>
     /// Converts an XML documentation string to Markdown with default error handling.
     /// </summary>
@@ -273,16 +276,24 @@ internal static partial class XmlToMarkdown
             {
                 collectionName = "Dictionary" + '‹' + retType.GetGenericArguments()[0].Name + ", " + retType.GetGenericArguments()[1].Name + '›';
             }
-            collectionName = $"[{collectionName}](#{retType})";
             return [values[0], values[1], collectionName];
         }
-        var displayAndUrl = string.Format(
-            "[{0}]({1})",
-            retType.Name.Replace("[]", string.Empty),
-            GenerateUrl(retType));
+        var typeDisplay = retType.Name.Replace("[]", string.Empty);
+        var displayAndUrl = string.Format("[{0}]({1})", typeDisplay, GenerateUrl(retType));
         displayAndUrl = CleanUpTypeForUrl(displayAndUrl);
         if (context.IsGitHub)
-            displayAndUrl = $"[{(retType.Name.Replace("[]", string.Empty))}](#{(retType.Name.Replace("[]", string.Empty).ToLowerInvariant())})";
+        {
+            // Keep external/BCL types unlinked to avoid unresolved in-document fragments.
+            if (!string.Equals(retType.Assembly.GetName().Name, context.AssemblyName, StringComparison.OrdinalIgnoreCase))
+            {
+                displayAndUrl = typeDisplay;
+            }
+            else
+            {
+                var anchorSource = retType.FullName ?? typeDisplay;
+                displayAndUrl = $"[{typeDisplay}](#{ToAnchorSlug(anchorSource)})";
+            }
+        }
         string[] strings = [values[0], values[1], displayAndUrl];
         return strings;
     }
@@ -330,7 +341,7 @@ internal static partial class XmlToMarkdown
     {
         string[] values = ExtractNameAndBodyFromMember(node, context);
         if (values.Length > 0 && !string.IsNullOrWhiteSpace(values[0]))
-            values[0] = $"**{values[0]}:";
+            values[0] = $"**{values[0]}:**";
         return values;
     }
 
@@ -654,13 +665,49 @@ internal static partial class XmlToMarkdown
     {
         var name = node.Attribute(att)?.Value ?? string.Empty;
         var display = ResolveDisplayName(name, node, context);
-        var (url, assemblyName) = ResolveUrl(name, name, context);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return [display, string.Empty];
+        }
 
         if (context.IsGitHub)
         {
-            return [display, "#" + url.ToLowerInvariant()];
+            // Explicit anchor cref format !:#anchor-text
+            if (name.StartsWith("!:#", StringComparison.Ordinal))
+            {
+                return [display, "#" + ToAnchorSlug(name[3..])];
+            }
+
+            // Only link internal types where generated headings exist and anchors are stable.
+            if (name.StartsWith("T:", StringComparison.Ordinal))
+            {
+                var isInternalTypeRef = !string.IsNullOrWhiteSpace(context.AssemblyName)
+                    && name.Contains(context.AssemblyName + ".", StringComparison.Ordinal);
+                if (!isInternalTypeRef)
+                {
+                    return [display, string.Empty];
+                }
+
+                var (typeUrl, _) = ResolveUrl(name, name, context);
+                return [display, "#" + ToAnchorSlug(typeUrl)];
+            }
+
+            // Member refs (M:/P:/F:/E:) and namespaces are often not represented as headings.
+            return [display, string.Empty];
         }
+
+        var (url, assemblyName) = ResolveUrl(name, name, context);
         return [display, "../" + assemblyName + "/#" + url.ToLowerInvariant()];
+    }
+
+    internal static string FormatReference(string att, XElement node, ConversionContext context)
+    {
+        var parts = ExtractNameAndUrl(att, node, context).ToArray();
+        var display = parts.Length > 0 ? parts[0] : string.Empty;
+        var url = parts.Length > 1 ? parts[1] : string.Empty;
+        if (string.IsNullOrWhiteSpace(url))
+            return display;
+        return $"[{display}]({url})";
     }
 
     internal static string ToMarkDown(this IEnumerable<XNode> es, ConversionContext context)
@@ -698,6 +745,33 @@ internal static partial class XmlToMarkdown
     }
 
     internal static string RemoveRedundantLineBreaks(this string s) { return ExcessiveLineBreaksRegex().Replace(s, "\n\n"); }
+
+    internal static string NormalizeMarkdown(this string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return string.Empty;
+
+        var normalized = content.Replace("\r\n", "\n").Replace('\r', '\n');
+        var lines = normalized.Split('\n');
+        var cleaned = lines
+            .Select(x => x.TrimEnd())
+            .ToArray();
+
+        for (var i = 0; i < cleaned.Length; i++)
+        {
+            if (cleaned[i].StartsWith('>'))
+            {
+                cleaned[i] = BlockQuotePrefixRegex().Replace(cleaned[i], "> ");
+            }
+        }
+
+        var result = string.Join("\n", cleaned)
+            .RemoveRedundantLineBreaks()
+            .Trim();
+
+        // markdownlint expects exactly one trailing newline.
+        return result + "\n";
+    }
 
     internal static string[] ExtractName(XElement x, ConversionContext _)
     {
@@ -756,7 +830,7 @@ internal static partial class XmlToMarkdown
     {
         string[] strings = ExtractNameAndBodyFromMember(element, context);
         if (!string.IsNullOrWhiteSpace(strings[0]))
-            strings[0] = $"\n\n**{strings[0]}:";
+            strings[0] = $"\n\n**{strings[0]}:**\n\n";
         return strings;
     }
 
@@ -794,24 +868,50 @@ internal static partial class XmlToMarkdown
         {
             string termText = header.Element("term")?.Nodes().ToMarkDown(context).Trim() ?? "Term";
             string descText = header.Element("description")?.Nodes().ToMarkDown(context).Trim() ?? "Description";
-            sb.Append($"| {termText} | {descText} |\n|---|---|\n");
+            sb.Append($"|{termText}|{descText}|\n|---|---|\n");
         }
         else
         {
-            sb.Append("| Term | Description |\n|---|---|\n");
+            sb.Append("|Term|Description|\n|---|---|\n");
         }
         foreach (var item in element.Elements("item"))
         {
             var termText = item.Element("term")?.Nodes().ToMarkDown(context).Trim() ?? string.Empty;
             var descText = item.Element("description")?.Nodes().ToMarkDown(context).Trim() ?? string.Empty;
-            sb.Append($"| {termText} | {descText} |\n");
+            sb.Append($"|{termText}|{descText}|\n");
         }
         sb.Append('\n');
         return [string.Empty, sb.ToString()];
     }
 
+    private static string ToAnchorSlug(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        var slug = text
+            .ToLowerInvariant()
+            .Replace(".", string.Empty)
+            .Replace("`", string.Empty)
+            .Replace("(", string.Empty)
+            .Replace(")", string.Empty)
+            .Replace(",", "-")
+            .Replace("_", "-")
+            .Replace("‹", string.Empty)
+            .Replace("›", string.Empty);
+
+        slug = AnchorInvalidCharsRegex().Replace(slug, string.Empty);
+        slug = WhitespaceRegex().Replace(slug, "-");
+        slug = HyphenRunsRegex().Replace(slug, "-").Trim('-');
+        return slug;
+    }
+
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();
+    [GeneratedRegex(@">\s+")]
+    private static partial Regex BlockQuotePrefixRegex();
     [GeneratedRegex(@"\n\n\n+")]
     private static partial Regex ExcessiveLineBreaksRegex();
+    [GeneratedRegex(@"-+")]
+    private static partial Regex HyphenRunsRegex();
 }

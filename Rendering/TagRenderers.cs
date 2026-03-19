@@ -53,78 +53,77 @@ internal static class TagRenderers
             new TagRenderStrategy("type", "\n---\n## {0}\n\n{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
             new TagRenderStrategy(
                 "firstfield",
-                "\n#### Fields:" + "\n|Name | Type | Description |\n|-----|------|------|\n" + "|{0}|{2}|{1}|\n",
+                "\n**Fields**\n\n|Name|Type|Description|\n|---|---|---|\n|{0}|{2}|{1}|\n",
                 XmlToMarkdown.ExtractNameAndBodyFromMemberProps),
             new TagRenderStrategy("field", "|{0}|{2}|{1}|\n", XmlToMarkdown.ExtractNameAndBodyFromMemberProps),
             new TagRenderStrategy(
                 "firstproperty",
-                "\n#### Properties:" + "\n|Name | Type | Description |\n|-----|------|------|\n" + "|{0}|{2}|{1}|\n",
+                "\n**Properties**\n\n|Name|Type|Description|\n|---|---|---|\n|{0}|{2}|{1}|\n",
                 XmlToMarkdown.ExtractNameAndBodyFromMemberProps),
             new TagRenderStrategy("property", "|{0}|{2}|{1}|\n", XmlToMarkdown.ExtractNameAndBodyFromMemberProps),
             new TagRenderStrategy(
                 "firstmethod",
-                "\n#### Methods:\n\n" + "##### {0}\n{1}\n",
+                "\n**Methods**\n\n### {0}\n\n{1}\n",
                 XmlToMarkdown.ExtractNameAndBodyFromMember),
-            new TagRenderStrategy("method", "\n##### {0}\n{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
+            new TagRenderStrategy("method", "\n### {0}\n\n{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
             new TagRenderStrategy(
                 "firstconstructor",
-                "\n#### Constructors:\n\n" + "##### {0}\n{1}\n",
+                "\n**Constructors**\n\n### {0}\n\n{1}\n",
                 XmlToMarkdown.ExtractNameAndBodyFromMember),
-            new TagRenderStrategy("constructor", "\n##### {0}\n{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
+            new TagRenderStrategy("constructor", "\n### {0}\n\n{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
             new TagRenderStrategy(
                 "firstevent",
-                "\n#### Events:\n" + "##### {0}\n{1}\n",
+                "\n**Events**\n\n### {0}\n\n{1}\n",
                 XmlToMarkdown.ExtractNameAndBodyFromMember),
-            new TagRenderStrategy("event", "##### {0}\n{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
-            new TagRenderStrategy("summary", "{0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("fieldsummary", "{0}", (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("value", "**Value**: {0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context)]),
+            new TagRenderStrategy("event", "\n### {0}\n\n{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
+            new TagRenderStrategy("summary", "{0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("fieldsummary", "{0}", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("value", "**Value**: {0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
             new TagRenderStrategy("nameremarks", "{0}", XmlToMarkdown.ExtractName),
-            new TagRenderStrategy("remarks", "\n{0}\n", (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("note",      "\n> [!NOTE]\n> {0}\n\n",      (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("warning",   "\n> [!WARNING]\n> {0}\n\n",   (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("tip",       "\n> [!TIP]\n> {0}\n\n",       (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("important", "\n> [!IMPORTANT]\n> {0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("caution",   "\n> [!CAUTION]\n> {0}\n\n",   (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("example", "\n##### Example\n{0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("para", "  \n {0}  ", (x, context) => [x.Nodes().ToMarkDown(context)]),
+            new TagRenderStrategy("remarks", "\n{0}\n", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("note",      "\n> [!NOTE]\n> {0}\n\n",      (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("warning",   "\n> [!WARNING]\n> {0}\n\n",   (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("tip",       "\n> [!TIP]\n> {0}\n\n",       (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("important", "\n> [!IMPORTANT]\n> {0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("caution",   "\n> [!CAUTION]\n> {0}\n\n",   (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("example", "\n**Example**\n\n{0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
+            new TagRenderStrategy("para", "\n\n{0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
             new TagRenderStrategy(
                 "code",
                 "\n```{0}\n{1}\n```\n\n",
                 (x, context) => [x.Attribute("lang")?.Value ?? "cs", x.Value.ToCodeBlock()]),
             new TagRenderStrategy(
                 "seePage",
-                "[{0}]({1})",
-                (x, context) => XmlToMarkdown.ExtractNameAndUrl("cref", x, context)),
+                "{0}",
+                (x, context) => [XmlToMarkdown.FormatReference("cref", x, context)]),
             new TagRenderStrategy(
                 "seeLangword",
                 "`{0}`",
                 (x, context) => [x.Attribute("langword")?.Value ?? x.Attribute("cref")?.Value ?? string.Empty]),
             new TagRenderStrategy(
                 "firstseealso",
-                "\n\nSee also:\n\n" + "- [{0}]({1})\n\n",
-                (x, context) => XmlToMarkdown.ExtractNameAndUrl("cref", x, context)),
+                "\n\nSee also:\n\n" + "- {0}\n",
+                (x, context) => [XmlToMarkdown.FormatReference("cref", x, context)]),
             new TagRenderStrategy(
                 "seealso",
-                "- [{0}]({1})\n\n",
-                (x, context) => XmlToMarkdown.ExtractNameAndUrl("cref", x, context)),
+                "- {0}\n",
+                (x, context) => [XmlToMarkdown.FormatReference("cref", x, context)]),
             new TagRenderStrategy(
                 "seeAnchor",
-                "[{1}]({0})",
+                "{0}",
                 (x, context) =>
                 {
-                    var xx = XmlToMarkdown.ExtractNameAndUrl("cref", x, context).ToArray();
-                    xx[0] = xx[0].ToLower();
-                    return xx;
+                    var rendered = XmlToMarkdown.FormatReference("cref", x, context);
+                    return [rendered];
                 }),
             new TagRenderStrategy(
                 "firsttypeparam",
-                "\n#### Generics:\n" + "\n|Name | Description |\n|-----|------|\n" + "|{0}: |{1}|\n",
+                "\n**Generics**\n\n|Name|Description|\n|---|---|\n|{0}|{1}|\n",
                 XmlToMarkdown.ExtractNameAndBodyFromMember),
-            new TagRenderStrategy("typeparam", "|{0}: |{1}|\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
+            new TagRenderStrategy("typeparam", "|{0}|{1}|\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
             new TagRenderStrategy(
                 "firstparam",
-                "\n|Name | Description |\n|-----|------|\n|{0}|{1}|\n",
+                "\n**Parameters**\n\n|Name|Description|\n|---|---|\n|{0}|{1}|\n",
                 (x, context) => XmlToMarkdown.ExtractNameAndBody("name", x, context)),
             new TagRenderStrategy(
                 "param",
@@ -137,8 +136,8 @@ internal static class TagRenderers
             new TagRenderStrategy("typeparamref", "`{0}`", XmlToMarkdown.ExtractNameAndBodyFromMember),
             new TagRenderStrategy(
                 "exception",
-                "**Throws:** [{0}]({1})\n\n",
-                (x, context) => XmlToMarkdown.ExtractNameAndUrl("cref", x, context)),
+                "**Throws:** {0}\n\n",
+                (x, context) => [XmlToMarkdown.FormatReference("cref", x, context)]),
             new TagRenderStrategy("returns", "\n**Returns:** {0}\n\n", XmlToMarkdown.GetReturnType),
             new TagRenderStrategy(
                 "inheritdoc",
@@ -148,7 +147,7 @@ internal static class TagRenderers
                     var cref = x.Attribute("cref")?.Value;
                     return [cref != null ? cref.Split('.').Last() : "base type"];
                 }),
-            new TagRenderStrategy("c", " `{0}` ", (x, context) => [x.Nodes().ToMarkDown(context)]),
+            new TagRenderStrategy("c", "`{0}`", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
             new TagRenderStrategy("none", string.Empty, (x, context) => []),
             new TagRenderStrategy("name", string.Empty, (x, context) => []),
             new TagRenderStrategy("assembly", "{1}\n", XmlToMarkdown.ExtractNameAndBodyFromMember),
@@ -163,7 +162,7 @@ internal static class TagRenderers
                         _        => XmlToMarkdown.GenerateList(x, context),
                     };
                 }),
-            new TagRenderStrategy("item", "\n- {0}{1}  ", XmlToMarkdown.ExtractNameAndBodyFromMember),
+            new TagRenderStrategy("item", "\n- {0}{1}", XmlToMarkdown.ExtractNameAndBodyFromMember),
             new TagRenderStrategy("description", "{0} {1}", XmlToMarkdown.ExtractNameAndBodyForListDescription),
             new TagRenderStrategy(
                 "listheader",
@@ -172,9 +171,9 @@ internal static class TagRenderers
             new TagRenderStrategy("term", "**{0}**", (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("b", "**{0}**", (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("i",  "*{0}*",       (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("u",  "<u>{0}</u>",  (x, context) => [x.Nodes().ToMarkDown(context)]),
+            new TagRenderStrategy("u",  "**{0}**",  (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("tt", "`{0}`",       (x, context) => [x.Nodes().ToMarkDown(context)]),
-            new TagRenderStrategy("br", "{0}  \n\n", (x, context) => [x.Nodes().ToMarkDown(context)]),
+            new TagRenderStrategy("br", "{0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context).Trim()]),
             new TagRenderStrategy("a", "[{0}]({1})", (x, context) => XmlToMarkdown.ExtractUrl("href", x, context)),
             new TagRenderStrategy("h1", "# {0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("h2", "## {0}\n\n", (x, context) => [x.Nodes().ToMarkDown(context)]),

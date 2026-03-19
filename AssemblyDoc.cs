@@ -10,11 +10,11 @@ namespace ROBdk97.XmlDocToMd;
 /// </para>
 /// <para>
 /// See the <see cref="Cli.Options"/> class for every available command-line parameter, and
-/// the <i>Supported XML Documentation Tags</i> section in <see cref="AssemblyDoc"/>
+/// the <i>Supported XML Documentation Tags</i> section in <a href="AssemblyDoc.cs">AssemblyDoc</a>
 /// remarks for the full list of handled tags.
 /// </para>
 /// <para>
-/// The tool looks for an empty public class named <c>AssemblyDoc</c> (abstract is
+/// The tool looks for an empty public class named <a href="AssemblyDoc.cs">AssemblyDoc</a> (abstract is
 /// recommended) and places its XML documentation at the top of the generated Markdown
 /// file. This is used to create a general documentation overview with references to the
 /// most important parts and a high-level description, similar to the main section of a
