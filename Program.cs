@@ -15,7 +15,7 @@ namespace ROBdk97.XmlDocToMd
 
         public static void Main(string[] args)
         {
-            if(args.Length == 0)
+            if (args.Length == 0)
             {
                 args = ["--help"];
             }
@@ -31,19 +31,19 @@ namespace ROBdk97.XmlDocToMd
                             // then search the directory for all .xml files in the directory and subdirectories and convert them to .md files in the output directory.
 
                             // if not ending with a backslash, add one.
-                            if(!o.SearchDirectory.EndsWith("\\"))
+                            if (!o.SearchDirectory.EndsWith('\\'))
                                 o.SearchDirectory += "\\";
-                            if(!o.OutputFile.EndsWith("\\"))
+                            if (!o.OutputFile.EndsWith('\\'))
                                 o.OutputFile += "\\";
                             // if the search directory does not exist, print an error and exit.
-                            if(!Directory.Exists(o.SearchDirectory))
+                            if (!Directory.Exists(o.SearchDirectory))
                             {
                                 Console.WriteLine($"Search directory \"{o.SearchDirectory}\" does not exist.");
                                 Debug.WriteLine($"Search directory \"{o.SearchDirectory}\" does not exist.");
                                 return;
                             }
                             // if the output directory does not exist, create it.
-                            if(!Directory.Exists(o.OutputFile))
+                            if (!Directory.Exists(o.OutputFile))
                                 Directory.CreateDirectory(o.OutputFile);
                             Console.WriteLine($"Starting XML to Markdown conversion to \"{o.OutputFile}\".");
                             Debug.WriteLine($"Starting XML to Markdown conversion to \"{o.OutputFile}\".");
@@ -53,16 +53,16 @@ namespace ROBdk97.XmlDocToMd
                                 o.SearchDirectory,
                                 o.Directory,
                                 SearchOption.AllDirectories);
-                            List<string> files = new List<string>();
-                            foreach(string rf in releaseFolders)
+                            List<string> files = [];
+                            foreach (string rf in releaseFolders)
                             {
                                 string[] filesInFolder = Directory.GetFiles(rf, "*.xml", SearchOption.AllDirectories);
-                                foreach(string file in filesInFolder)
+                                foreach (string file in filesInFolder)
                                 {
-                                    if(settings.FilesToIgnore.Contains(Path.GetFileName(file)))
+                                    if (settings.FilesToIgnore.Contains(Path.GetFileName(file)))
                                         continue;
                                     string outputFile = $"{o.OutputFile}{Path.GetFileName(file).Replace(".xml", ".md")}";
-                                    if(o.Readme)
+                                    if (o.Readme)
                                         outputFile = $"{o.OutputFile}README.md";
                                     Console.WriteLine($"Converting {file} to {outputFile}");
                                     Debug.WriteLine($"Converting {file} to {outputFile}");
@@ -73,7 +73,8 @@ namespace ROBdk97.XmlDocToMd
                             Console.WriteLine("Conversion to Markdown done.");
                             Debug.WriteLine("Conversion to Markdown done.");
                             return;
-                        } else if(o.InputFile != null && o.OutputFile != null)
+                        }
+                        else if (o.InputFile != null && o.OutputFile != null)
                         {
                             RunXmlToMarkdown(o.InputFile, o.OutputFile, o);
                         }
@@ -92,7 +93,7 @@ namespace ROBdk97.XmlDocToMd
         {
             XmlToMarkdown.CurrentXmlFile = input;
             var inReader = options.ConsoleIn ? Console.In : new StreamReader(input);
-            using(var outWriter = options.ConsoleIn ? Console.Out : new StreamWriter(output))
+            using (var outWriter = options.ConsoleIn ? Console.Out : new StreamWriter(output))
             {
                 var xml = inReader.ReadToEnd();
                 var doc = XDocument.Parse(xml);
@@ -118,9 +119,10 @@ namespace ROBdk97.XmlDocToMd
             }
             try
             {
-                if(!string.IsNullOrWhiteSpace(options.SecondaryOutputDirectory))
+                if (!string.IsNullOrWhiteSpace(options.SecondaryOutputDirectory))
                     File.Copy(output, $"{options.SecondaryOutputDirectory}\\docs\\{Path.GetFileName(output)}", true);
-            } catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 Console.WriteLine($"Error copying file to secondary output directory: {ex.Message}");
             }
@@ -135,7 +137,7 @@ namespace ROBdk97.XmlDocToMd
                 .Where(member => member.Attribute("name").Value.Contains("AssemblyDoc"))
                 .ToList();  // ToList is necessary because we're modifying the collection
 
-            foreach(var member in members)
+            foreach (var member in members)
             {
                 // get the assembly node.
                 var assembly = doc.Root.Element("assembly");
@@ -158,10 +160,10 @@ namespace ROBdk97.XmlDocToMd
                 .Elements("member")
                 .Where(member => member.Attribute("name").Value.StartsWith("M:"))
                 .ToList();  // ToList is necessary because we're modifying the collection
-            foreach(var member in members)
+            foreach (var member in members)
             {
                 // if the member does not have a returns tag, add one.
-                if(member.Element("returns") == null)
+                if (member.Element("returns") == null)
                 {
                     member.Add(new XElement("returns", string.Empty));
                 }
