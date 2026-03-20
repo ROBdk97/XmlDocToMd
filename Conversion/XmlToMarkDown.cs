@@ -262,22 +262,25 @@ internal static partial class XmlToMarkdown
         if (values.Length == 2 && nameAttr != null && !nameAttr.Value.Contains("F:"))
             values[1] = values[1].TrimEnd().RemoveRedundantLineBreaks();
 
-        // Sanitize description for table cell use
         values[1] = values[1].SanitizeForTableCell();
 
-        var className = nameAttr?.Value ?? string.Empty;
-        var type = className.Split(':')[0];
-        //remove the type prefix
-        className = _PrefixReplacerRegex.Replace(className, string.Empty);
-        // get property/field name
-        var attributeName = node.Attribute("name")?.Value ?? string.Empty;
-        // get property/field by getting the last part of the attribute name
-        attributeName = attributeName.Split('.').Last();
-        // remove the attribute name from the class name
+        var memberName = nameAttr?.Value ?? string.Empty;
+        var type = memberName.Split(':')[0];
+        var className = _PrefixReplacerRegex.Replace(memberName, string.Empty);
+        var attributeName = className.Split('.').Last();
+        if (className.Contains('.'))
+            className = className[..className.LastIndexOf('.')];
+
         var retType = ReflectionHelper.GetReturnType(className, type, attributeName);
         if (retType is null)
+        {
+            var returnTypeName = ReflectionHelper.GetReturnTypeName(className, type, attributeName);
+            if (!string.IsNullOrWhiteSpace(returnTypeName))
+                return [values[0], values[1], FormatTypeName(returnTypeName, node, context)];
+
             return [values[0], values[1], CleanUpTypeForUrl(type)];
-        // try to get lists and the type of the list
+        }
+
         if (retType.IsGenericType)
         {
             var collectionName = string.Empty;
@@ -291,24 +294,16 @@ internal static partial class XmlToMarkdown
             }
             return [values[0], values[1], collectionName];
         }
+
         var typeDisplay = retType.Name.Replace("[]", string.Empty);
-        var displayAndUrl = string.Format("[{0}]({1})", typeDisplay, GenerateUrl(retType));
-        displayAndUrl = CleanUpTypeForUrl(displayAndUrl);
-        if (context.IsGitHub)
-        {
-            // Keep external/BCL types unlinked to avoid unresolved in-document fragments.
-            if (!string.Equals(retType.Assembly.GetName().Name, context.AssemblyName, StringComparison.OrdinalIgnoreCase))
-            {
-                displayAndUrl = typeDisplay;
-            }
-            else
-            {
-                var anchorSource = retType.FullName ?? typeDisplay;
-                displayAndUrl = $"[{typeDisplay}](#{ToAnchorSlug(anchorSource)})";
-            }
-        }
-        string[] strings = [values[0], values[1], displayAndUrl];
-        return strings;
+        var targetTypeName = retType.IsArray
+            ? retType.GetElementType()?.FullName ?? retType.FullName ?? typeDisplay
+            : retType.FullName ?? typeDisplay;
+
+        if (!string.Equals(retType.Assembly.GetName().Name, context.AssemblyName, StringComparison.OrdinalIgnoreCase))
+            return [values[0], values[1], typeDisplay + (retType.IsArray ? "[]" : string.Empty)];
+
+        return [values[0], values[1], FormatLinkedTypeName(typeDisplay, targetTypeName, retType.IsArray, node, context)];
     }
 
     private static string CleanUpTypeForUrl(string s)
@@ -350,11 +345,114 @@ internal static partial class XmlToMarkdown
         ["byte"] = "byte",
     };
 
+    private static string FormatTypeName(string typeName, XElement node, ConversionContext context)
+    {
+        ArgumentNullException.ThrowIfNull(typeName);
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var isByRef = typeName.EndsWith("@", StringComparison.Ordinal);
+        if (isByRef)
+            typeName = typeName[..^1];
+
+        var isArray = typeName.EndsWith("[]", StringComparison.Ordinal);
+        if (isArray)
+            typeName = typeName[..^2];
+
+        if (typeName.StartsWith("System.Nullable{", StringComparison.Ordinal) && typeName.EndsWith("}", StringComparison.Ordinal))
+        {
+            var innerTypeName = typeName[16..^1];
+            return FormatTypeName(innerTypeName, node, context) + "?";
+        }
+
+        var displayName = GetTypeDisplayName(typeName);
+        return FormatLinkedTypeName(displayName, typeName, isArray, node, context, isByRef);
+    }
+
+    private static string FormatLinkedTypeName(
+        string displayName,
+        string typeName,
+        bool isArray,
+        XElement node,
+        ConversionContext context,
+        bool isByRef = false)
+    {
+        ArgumentNullException.ThrowIfNull(displayName);
+        ArgumentNullException.ThrowIfNull(typeName);
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (isArray)
+            displayName += "[]";
+        if (isByRef)
+            displayName += "@";
+
+        if (typeName.StartsWith("System.", StringComparison.Ordinal))
+            return displayName;
+
+        var linkTarget = ResolveDocumentedTypeLinkTarget(typeName, node) ?? typeName;
+
+        if (context.IsGitHub)
+            return $"[{displayName}](#{ToAnchorSlug(linkTarget)})";
+
+        var url = "../" + context.AssemblyName + "/#" + linkTarget.RemoveNamespace(context.AssemblyName)
+            .Replace(".", string.Empty)
+            .Replace(",", "-")
+            .Replace(" ", "-")
+            .ToLowerInvariant();
+
+        return $"[{displayName}]({url})";
+    }
+
+    private static string? ResolveDocumentedTypeLinkTarget(string typeName, XElement node)
+    {
+        ArgumentNullException.ThrowIfNull(typeName);
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (HasDocumentedType(typeName, node))
+            return typeName;
+
+        var shortName = typeName.Split('.').Last();
+        if (shortName.Length <= 1 || shortName[0] != 'I' || !char.IsUpper(shortName[1]))
+            return null;
+
+        var lastDotIndex = typeName.LastIndexOf('.');
+        var namespacePrefix = lastDotIndex >= 0 ? typeName[..(lastDotIndex + 1)] : string.Empty;
+        var classTypeName = namespacePrefix + shortName[1..];
+
+        return HasDocumentedType(classTypeName, node)
+            ? classTypeName
+            : null;
+    }
+
+    private static bool HasDocumentedType(string typeName, XElement node)
+    {
+        ArgumentNullException.ThrowIfNull(typeName);
+        ArgumentNullException.ThrowIfNull(node);
+
+        return node.Document?
+            .Root?
+            .Element("members")?
+            .Elements("member")
+            .Any(member => string.Equals(member.Attribute("name")?.Value, "T:" + typeName, StringComparison.Ordinal)) == true;
+    }
+
+    private static string GetTypeDisplayName(string typeName)
+    {
+        ArgumentNullException.ThrowIfNull(typeName);
+
+        var shortName = typeName.Split('.').Last();
+        if (_types.TryGetValue(shortName, out var alias))
+            return alias;
+
+        return shortName;
+    }
+
     internal static string[] ExtractNameAndBodyForListDescription(XElement node, ConversionContext context)
     {
         string[] values = ExtractNameAndBodyFromMember(node, context);
         if (values.Length > 0 && !string.IsNullOrWhiteSpace(values[0]))
-            values[0] = $"**{values[0]}:**";
+            values[0] = $"**{values[0]}:";
         return values;
     }
 

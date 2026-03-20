@@ -184,19 +184,19 @@ The settings file is created automatically with empty defaults when it does not 
 ---
 ## ROBdk97.XmlDocToMd.Cli.UnexpectedTagActionEnum
 
-Controls how the converter reacts when it encounters an XML documentation tag that has no registered [ITagRenderStrategy](#robdk97xmldoctomdrenderingitagrenderstrategy).
+Controls how the converter reacts to recoverable conversion problems, such as XML documentation tags without a registered [ITagRenderStrategy](#robdk97xmldoctomdrenderingitagrenderstrategy) or other non-fatal rendering issues encountered while walking the XML tree.
 
 Choose the policy that best fits the maturity of your XML documentation:
 > [!TIP]
-> Start with Warn while authoring documentation, then switch to Error once all tags are accounted for.
+> Start with Warn while authoring documentation, then switch to Error once all conversion issues are accounted for.
 
 **Fields**
 
 |Name|Type|Description|
 |---|---|---|
-|Error|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Throws an KeyNotFoundException when an unknown tag is encountered, halting conversion immediately. > [!WARNING] > Using Error in a post-build event will cause the build to fail when any unsupported tag is present in the XML documentation.|
+|Error|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Throws when a recoverable conversion problem is encountered, halting conversion immediately.|
 |Warn|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Emits a `WARN: ` diagnostic to `stderr` via the configured [IWarningLogger](#robdk97xmldoctomdloggingiwarninglogger) and continues conversion, producing partial output.|
-|Accept|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Silently skips tags with no registered renderer. No diagnostic is emitted and no output is produced for the skipped element.|
+|Accept|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Silently ignores recoverable conversion problems. No diagnostic is emitted and no output is produced for the skipped element.|
 
 ---
 
