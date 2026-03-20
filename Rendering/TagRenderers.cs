@@ -170,6 +170,7 @@ internal static class TagRenderers
                 XmlToMarkdown.ExtractNameAndBodyFromMember),
             new TagRenderStrategy("term", "**{0}**", (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("b", "**{0}**", (x, context) => [x.Nodes().ToMarkDown(context)]),
+            new TagRenderStrategy("strong", "**{0}**", (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("i",  "*{0}*",       (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("u",  "**{0}**",  (x, context) => [x.Nodes().ToMarkDown(context)]),
             new TagRenderStrategy("tt", "`{0}`",       (x, context) => [x.Nodes().ToMarkDown(context)]),

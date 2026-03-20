@@ -11,11 +11,10 @@ public class Settings
 {
     /// <summary>
     /// File names (without path) that should be skipped during directory-wide conversion.
+    /// Supports the wildcard <tt>*</tt>, for example <tt>System*</tt>, <tt>Microsoft*</tt>.
+    /// Add system-generated XML files such as <tt>System.Runtime.xml</tt> to keep the output
+    /// focused on your own assemblies.
     /// </summary>
-    /// <tip>
-    /// Add system-generated XML files such as <tt>System.Runtime.xml</tt> here to keep
-    /// the output focused on your own assemblies.
-    /// </tip>
     public List<string> FilesToIgnore { get; set; } = [];
 
     /// <summary>

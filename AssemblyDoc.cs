@@ -14,6 +14,10 @@ namespace ROBdk97.XmlDocToMd;
 /// remarks for the full list of handled tags.
 /// </para>
 /// <para>
+/// Use <see cref="Cli.Settings.FilesToIgnore"/> to skip files during batch conversion.
+/// The wildcard <tt>*</tt> is supported, for example <tt>System*</tt>, <tt>Microsoft*</tt>.
+/// </para>
+/// <para>
 /// The tool looks for an empty public class named <a href="AssemblyDoc.cs">AssemblyDoc</a> (abstract is
 /// recommended) and places its XML documentation at the top of the generated Markdown
 /// file. This is used to create a general documentation overview with references to the
@@ -86,7 +90,7 @@ namespace ROBdk97.XmlDocToMd;
 /// <listheader><term>Tag / attribute</term><description>Markdown output</description></listheader>
 /// <item><term><c>see cref=""</c></term><description>Inline hyperlink to the referenced member.</description></item>
 /// <item><term><c>see langword=""</c></term><description>Renders the keyword as inline code, e.g. <see langword="null"/>, <see langword="true"/>.</description></item>
-/// <item><term><c>see href=""</c></term><description>Inline hyperlink using the raw URL (anchor variant).</description></item>
+/// <item><term><c>see href=""</c></term><description>Currently not rendered as a link. Use <c>a href=""</c> for explicit URL links.</description></item>
 /// <item><term><c>seealso</c></term><description>Appended to a <i>See also</i> bullet list at the end of the member block.</description></item>
 /// <item><term><c>paramref</c></term><description>Renders the parameter name as inline code.</description></item>
 /// <item><term><c>typeparamref</c></term><description>Renders the type-parameter name as inline code.</description></item>
@@ -114,8 +118,9 @@ namespace ROBdk97.XmlDocToMd;
 /// <item><term><c>c</c></term><description>Inline code span: <c>`text`</c></description></item>
 /// <item><term><c>tt</c></term><description>Teletype / monospace — same output as <c>c</c>: <c>`text`</c></description></item>
 /// <item><term><c>b</c></term><description><b>Bold</b> text: <c>**text**</c></description></item>
+/// <item><term><c>strong</c></term><description><b>Bold</b> text: <c>**text**</c></description></item>
 /// <item><term><c>i</c></term><description><i>Italic</i> text: <c>*text*</c></description></item>
-/// <item><term><c>u</c></term><description><u>Underline</u> via HTML pass-through: <c>&lt;u&gt;text&lt;/u&gt;</c></description></item>
+/// <item><term><c>u</c></term><description>Currently rendered as bold text: <c>**text**</c></description></item>
 /// <item><term><c>para</c></term><description>Paragraph break inside a block element.</description></item>
 /// <item><term><c>code</c></term><description>Fenced code block. Use the <c>lang</c> attribute for syntax highlighting, e.g. <c>lang="csharp"</c>.</description></item>
 /// </list>

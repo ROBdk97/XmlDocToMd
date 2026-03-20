@@ -6,6 +6,7 @@ using ROBdk97.XmlDocToMd.Infrastructure;
 using ROBdk97.XmlDocToMd.Logging;
 using ROBdk97.XmlDocToMd.Rendering;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace ROBdk97.XmlDocToMd;
 
@@ -54,7 +55,7 @@ internal static class Program
 
                         var conversionTargets = releaseFolders
                             .SelectMany(rf => Directory.GetFiles(rf, "*.xml", SearchOption.AllDirectories))
-                            .Where(file => !settings.FilesToIgnore.Contains(Path.GetFileName(file)))
+                            .Where(file => !IsIgnoredFile(Path.GetFileName(file), settings.FilesToIgnore))
                             .Where(file => !IsInDirectory(file, "obj"))
                             .Select(file => new
                             {
@@ -103,6 +104,33 @@ internal static class Program
             StringSplitOptions.RemoveEmptyEntries);
 
         return parts.Any(part => part.Equals(directoryName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsIgnoredFile(string fileName, IEnumerable<string> ignorePatterns)
+    {
+        ArgumentNullException.ThrowIfNull(fileName);
+        ArgumentNullException.ThrowIfNull(ignorePatterns);
+
+        foreach (var pattern in ignorePatterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                continue;
+            }
+
+            if (WildcardMatch(fileName, pattern))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool WildcardMatch(string input, string pattern)
+    {
+        var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+        return Regex.IsMatch(input, regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     /// <summary>

@@ -5,6 +5,8 @@ The tool reads the standard `.xml` file emitted by the C# compiler alongside the
 
 See the [Options](#robdk97xmldoctomdclioptions) class for every available command-line parameter, and the *Supported XML Documentation Tags* section in [AssemblyDoc](AssemblyDoc.cs) remarks for the full list of handled tags.
 
+Use FilesToIgnore to skip files during batch conversion. The wildcard `*` is supported, for example `System*`, `Microsoft*`.
+
 The tool looks for an empty public class named [AssemblyDoc](AssemblyDoc.cs) (abstract is recommended) and places its XML documentation at the top of the generated Markdown file. This is used to create a general documentation overview with references to the most important parts and a high-level description, similar to the main section of a README.
 
 > [!NOTE]
@@ -75,7 +77,7 @@ Searches `C:\Project\Docs` for sub-folders named `Release`, converts every `.xml
 |---|---|
 |`see cref=""`|Inline hyperlink to the referenced member.|
 |`see langword=""`|Renders the keyword as inline code, e.g. `null`, `true`.|
-|`see href=""`|Inline hyperlink using the raw URL (anchor variant).|
+|`see href=""`|Currently not rendered as a link. Use `a href=""` for explicit URL links.|
 |`seealso`|Appended to a *See also* bullet list at the end of the member block.|
 |`paramref`|Renders the parameter name as inline code.|
 |`typeparamref`|Renders the type-parameter name as inline code.|
@@ -102,8 +104,9 @@ Searches `C:\Project\Docs` for sub-folders named `Release`, converts every `.xml
 |`c`|Inline code span: ``text``|
 |`tt`|Teletype / monospace — same output as `c`: ``text``|
 |`b`|**Bold** text: `**text**`|
+|`strong`|**Bold** text: `**text**`|
 |`i`|*Italic* text: `*text*`|
-|`u`|**Underline** via HTML pass-through: `<u>text</u>`|
+|`u`|Currently rendered as bold text: `**text**`|
 |`para`|Paragraph break inside a block element.|
 |`code`|Fenced code block. Use the `lang` attribute for syntax highlighting, e.g. `lang="csharp"`.|
 
@@ -134,10 +137,14 @@ Searches `C:\Project\Docs` for sub-folders named `Release`, converts every `.xml
 Command-line options for the XmlDocToMd converter.
 
 Options are parsed by [CommandLineParser](https://github.com/commandlineparser/commandline) and can also be populated programmatically for testing or embedding purposes.
+
 |Flag|Purpose|
 |---|---|
 |`-i` / `--inputfile`|Single XML file to convert.|
+|`--cin`|Read XML input from standard input instead of a file.|
 |`-o` / `--outputfile`|Destination Markdown file.|
+|`--cout`|Write generated Markdown to standard output instead of a file.|
+|`-l` / `--secondaryDir`|Optional secondary output directory for copying generated Markdown.|
 |`-s` / `-d`|Batch mode: search directory + subdirectory name.|
 |`-u`|Unexpected-tag policy ([UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)).|
 |`-g`|Use GitHub-Flavored Markdown anchor links.|
@@ -148,17 +155,17 @@ Options are parsed by [CommandLineParser](https://github.com/commandlineparser/c
 
 |Name|Type|Description|
 |---|---|---|
-|InputFile|String|Path to the input XML documentation file to convert. > [!NOTE] > Mutually exclusive with `--cin`. When both are supplied, the file path takes precedence and ConsoleIn is ignored.|
-|ConsoleIn|Boolean|When `true`, reads the XML document from `stdin` instead of a file. > [!TIP] > Pipe output directly from MSBuild or another tool: `bat type MyLib.xml \| XmlDocToMd.exe --cin -o docs\README.md `|
-|OutputFile|String|Path of the Markdown file to write. > [!NOTE] > In batch mode (`-s`/`-d`) this is treated as the *output directory* rather than a single file path.|
+|InputFile|String|Path to the input XML documentation file to convert. Mutually exclusive with `--cin`; when both are supplied, the file path takes precedence and ConsoleIn is ignored.|
+|ConsoleIn|Boolean|When `true`, reads the XML document from `stdin` instead of a file. Example: `type MyLib.xml \| XmlDocToMd.exe --cin -o docs\README.md`.|
+|OutputFile|String|Path of the Markdown file to write. In batch mode (`-s`/`-d`) this is treated as the output directory rather than a single file path.|
 |SecondaryOutputDirectory|String|Optional secondary output directory. The generated Markdown file is copied here after the primary write, for example to a network share or documentation repo.|
 |ConsoleOut|Boolean|When `true`, writes the Markdown output to `stdout` instead of a file.|
-|UnexpectedTagAction|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Determines how XML tags that have no registered renderer are treated. Defaults to Error. \|Value\|Behaviour\| \|---\|---\| \|Error\|Throws an exception and halts conversion.\| \|Warn\|Emits a `WARN:` line to `stderr` and continues.\| \|Accept\|Silently skips the unknown tag.\||
-|SearchDirectory|String|Root directory to search for XML documentation files when running in batch mode. Must be combined with Directory (`-d`). > [!TIP] > Point this at the project root; use `-d` to name the build-output subfolder (e.g. `Release` or `XMLtoMD`).|
+|UnexpectedTagAction|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Determines how XML tags that have no registered renderer are treated. Defaults to Error. Values: Error (throws and halts), Warn (writes WARN and continues), Accept (silently skips).|
+|SearchDirectory|String|Root directory to search for XML documentation files when running in batch mode. Must be combined with Directory (`-d`). Tip: point this at the project root and use `-d` for the build-output subfolder (for example `Release` or `XMLtoMD`).|
 |Directory|String|Name of the subdirectory within SearchDirectory that contains the compiled `.xml` and `.dll` files. Defaults to `"Release"`.|
-|Git|Boolean|When `true`, formats anchor links using GitHub-Flavored Markdown conventions (lower-case, hyphens instead of spaces). > [!TIP] > Enable this when the output will be published to GitHub, GitLab, or any host that renders GFM — it ensures heading anchors resolve correctly.|
-|Readme|Boolean|When `true`, names the output file `README.md` instead of `{AssemblyName}.md`. > [!TIP] > Use together with `-g` when generating the landing-page documentation for a GitHub repository.|
-|SettingsFile|String|Path to the JSON settings file that controls file and namespace exclusions. Defaults to `"settings.json"` in the working directory. > [!NOTE] > If the file does not exist it is created automatically with empty default values. See [Settings](#robdk97xmldoctomdclisettings) for the available properties.|
+|Git|Boolean|When `true`, formats anchor links using GitHub-Flavored Markdown conventions (lower-case, hyphens instead of spaces). Tip: enable this when publishing to GitHub/GitLab so heading anchors resolve correctly.|
+|Readme|Boolean|When `true`, names the output file `README.md` instead of `{AssemblyName}.md`. Use together with `-g` when generating the landing-page documentation for a GitHub repository.|
+|SettingsFile|String|Path to the JSON settings file that controls file and namespace exclusions. Defaults to `"settings.json"` in the working directory. If the file does not exist it is created automatically with empty default values. See [Settings](#robdk97xmldoctomdclisettings) for available properties.|
 
 ---
 ## ROBdk97.XmlDocToMd.Cli.Settings
@@ -171,7 +178,7 @@ The settings file is created automatically with empty defaults when it does not 
 
 |Name|Type|Description|
 |---|---|---|
-|FilesToIgnore|List‹String›|File names (without path) that should be skipped during directory-wide conversion. > [!TIP] > Add system-generated XML files such as `System.Runtime.xml` here to keep the output focused on your own assemblies.|
+|FilesToIgnore|List‹String›|File names (without path) that should be skipped during directory-wide conversion. Supports the wildcard `*`, for example `System*`, `Microsoft*`. Add system-generated XML files such as `System.Runtime.xml` to keep the output focused on your own assemblies.|
 |NameSpacesToRemove|List‹String›|Namespace fragments whose members are excluded from conversion. Any member whose fully-qualified name contains one of these strings is silently dropped before rendering begins. > [!TIP] > Use this to hide internal or generated namespaces such as `CompilerServices` or `Internal`.|
 
 ---
