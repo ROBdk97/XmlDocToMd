@@ -1,5 +1,8 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 
 namespace ROBdk97.XmlDocToMd.Conversion;
 
@@ -23,24 +26,47 @@ internal static class ReflectionHelper
         new(StringComparer.OrdinalIgnoreCase);
 
 
+    private static readonly Dictionary<string, string?> _returnTypeNameCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
+
     private static readonly Dictionary<string, bool> _isPublicCache =
         new(StringComparer.OrdinalIgnoreCase);
 
 
-    private static string _currentDllPath = string.Empty;
+    private static string _currentAssemblyPath = string.Empty;
+
+    private const BindingFlags MemberLookupBindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.FlattenHierarchy;
 
     /// <summary>
-    /// Sets the current DLL path to be used for reflection operations. Should be called
+    /// Sets the current assembly path to be used for reflection operations. Should be called
     /// before processing each XML file.
     /// </summary>
     internal static void SetCurrentXmlFile(string xmlFilePath)
     {
         ArgumentNullException.ThrowIfNull(xmlFilePath);
-        _currentDllPath = xmlFilePath.Replace(".xml", ".dll");
+        _currentAssemblyPath = ResolveAssemblyPath(xmlFilePath);
     }
 
-    private static string GetCurrentDllPath() =>
-        _currentDllPath;
+    private static string GetCurrentAssemblyPath() =>
+        _currentAssemblyPath;
+
+    private static string ResolveAssemblyPath(string xmlFilePath)
+    {
+        var dllPath = Path.ChangeExtension(xmlFilePath, ".dll");
+        if (File.Exists(dllPath))
+        {
+            return dllPath;
+        }
+
+        var exePath = Path.ChangeExtension(xmlFilePath, ".exe");
+        if (File.Exists(exePath))
+        {
+            return exePath;
+        }
+
+        return dllPath;
+    }
 
     /// <summary>
     /// Returns the <see cref="Type"/> of the field <paramref name="fieldName"/> declared
@@ -57,7 +83,7 @@ internal static class ReflectionHelper
         {
             Type? type = GetTypeT(fullClassName);
             if (type is null) return null;
-            FieldInfo? field = type.GetField(fieldName);
+            FieldInfo? field = FindField(type, fieldName);
             return field?.FieldType;
         }
         catch
@@ -106,30 +132,78 @@ internal static class ReflectionHelper
     /// </summary>
     private static Type? GetTypeT(string fullClassName)
     {
-        string dllPath = GetCurrentDllPath();
+        string assemblyPath = GetCurrentAssemblyPath();
 
-        if (!_assemblyCache.TryGetValue(dllPath, out var assembly))
+        if (!_assemblyCache.TryGetValue(assemblyPath, out var assembly))
         {
-            if (File.Exists(dllPath))
+            if (File.Exists(assemblyPath))
             {
-                assembly = Assembly.LoadFrom(dllPath);
-                _assemblyCache[dllPath] = assembly;
+                assembly = Assembly.LoadFrom(assemblyPath);
+                _assemblyCache[assemblyPath] = assembly;
+                LoadReferencedAssemblies(assembly, Path.GetDirectoryName(assemblyPath));
             }
             else
             {
-                Console.WriteLine($"DLL file not found: {dllPath}");
-                Debug.WriteLine($"DLL file not found: {dllPath}");
+                Console.WriteLine($"Assembly file not found: {assemblyPath}");
+                Debug.WriteLine($"Assembly file not found: {assemblyPath}");
                 return null;
             }
         }
 
-        string typeCacheKey = $"{dllPath}\0{fullClassName}";
+        string typeCacheKey = $"{assemblyPath}\0{fullClassName}";
         if (_typeCache.TryGetValue(typeCacheKey, out var cachedType))
             return cachedType;
 
         var type = GetTypeFromAssembly(fullClassName, assembly);
         _typeCache[typeCacheKey] = type;
         return type;
+    }
+
+    private static void LoadReferencedAssemblies(Assembly assembly, string? assemblyDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(assemblyDirectory) || !Directory.Exists(assemblyDirectory))
+        {
+            return;
+        }
+
+        foreach (var referencedAssemblyName in assembly.GetReferencedAssemblies())
+        {
+            if (AppDomain.CurrentDomain.GetAssemblies()
+                .Any(a => string.Equals(a.GetName().Name, referencedAssemblyName.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var candidatePaths = new[]
+            {
+                Path.Combine(assemblyDirectory, referencedAssemblyName.Name + ".dll"),
+                Path.Combine(assemblyDirectory, referencedAssemblyName.Name + ".exe")
+            };
+
+            foreach (var candidatePath in candidatePaths)
+            {
+                if (!File.Exists(candidatePath) || _assemblyCache.ContainsKey(candidatePath))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var referencedAssembly = Assembly.LoadFrom(candidatePath);
+                    _assemblyCache[candidatePath] = referencedAssembly;
+                    LoadReferencedAssemblies(referencedAssembly, Path.GetDirectoryName(candidatePath));
+                    break;
+                }
+                catch (FileLoadException ex)
+                {
+                    Debug.WriteLine($"Failed to load referenced assembly '{candidatePath}': {ex.Message}");
+                }
+                catch (BadImageFormatException ex)
+                {
+                    Debug.WriteLine($"Failed to load referenced assembly '{candidatePath}': {ex.Message}");
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -200,13 +274,44 @@ internal static class ReflectionHelper
         {
             var type = GetTypeT(fullClassName);
             if (type is null) return null;
-            var property = type.GetProperty(propertyName);
+            var property = FindProperty(type, propertyName);
             return property?.PropertyType;
         }
         catch
         {
             return null;
         }
+    }
+
+    private static FieldInfo? FindField(Type type, string fieldName)
+    {
+        for (var current = type; current is not null; current = current.BaseType)
+        {
+            var field = current.GetField(fieldName, MemberLookupBindingFlags);
+            if (field is not null)
+                return field;
+        }
+
+        return null;
+    }
+
+    private static PropertyInfo? FindProperty(Type type, string propertyName)
+    {
+        for (var current = type; current is not null; current = current.BaseType)
+        {
+            var property = current.GetProperty(propertyName, MemberLookupBindingFlags);
+            if (property is not null)
+                return property;
+        }
+
+        foreach (var interfaceType in type.GetInterfaces())
+        {
+            var property = interfaceType.GetProperty(propertyName, MemberLookupBindingFlags);
+            if (property is not null)
+                return property;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -316,7 +421,7 @@ internal static class ReflectionHelper
             if (!nameAttr.Contains(':'))
                 return false;
 
-            var cacheKey = $"{GetCurrentDllPath()}\0{nameAttr}";
+            var cacheKey = $"{GetCurrentAssemblyPath()}\0{nameAttr}";
             if (_isPublicCache.TryGetValue(cacheKey, out bool cached))
                 return cached;
 
@@ -381,7 +486,7 @@ internal static class ReflectionHelper
         ArgumentNullException.ThrowIfNull(type);
         ArgumentNullException.ThrowIfNull(attribute);
 
-        var key = $"{GetCurrentDllPath()}\0{className}\0{type}\0{attribute}";
+        var key = $"{GetCurrentAssemblyPath()}\0{className}\0{type}\0{attribute}";
         if (_returnTypeCache.TryGetValue(key, out Type? cached))
             return cached;
 
@@ -394,5 +499,245 @@ internal static class ReflectionHelper
         };
         _returnTypeCache[key] = result;
         return result;
+    }
+
+    /// <summary>
+    /// Returns the metadata-based type name for the member described by
+    /// (<paramref name="className"/>, <paramref name="type"/>, <paramref name="attribute"/>),
+    /// or <see langword="null"/> when the DLL is unavailable or the member cannot be
+    /// resolved.
+    /// </summary>
+    /// <param name="className">Fully-qualified declaring type name.</param>
+    /// <param name="type">
+    /// Kind discriminator: <tt>"M"</tt> method, <tt>"P"</tt> property, <tt>"F"</tt> field.
+    /// </param>
+    /// <param name="attribute">Simple member name (method may include parameter list).</param>
+    internal static string? GetReturnTypeName(string className, string type, string attribute)
+    {
+        ArgumentNullException.ThrowIfNull(className);
+        ArgumentNullException.ThrowIfNull(type);
+        ArgumentNullException.ThrowIfNull(attribute);
+
+        var key = $"{GetCurrentAssemblyPath()}\0{className}\0{type}\0{attribute}";
+        if (_returnTypeNameCache.TryGetValue(key, out string? cached))
+            return cached;
+
+        var result = type switch
+        {
+            "P" => GetPropertyTypeNameFromMetadata(className, attribute),
+            "F" => GetFieldTypeNameFromMetadata(className, attribute),
+            _ => null
+        };
+
+        _returnTypeNameCache[key] = result;
+        return result;
+    }
+
+    private static string? GetPropertyTypeNameFromMetadata(string fullClassName, string propertyName)
+    {
+        try
+        {
+            return ReadMetadata(reader =>
+            {
+                var typeHandle = FindTypeDefinition(reader, fullClassName);
+                if (typeHandle.IsNil)
+                    return null;
+
+                var typeDefinition = reader.GetTypeDefinition(typeHandle);
+                foreach (var propertyHandle in typeDefinition.GetProperties())
+                {
+                    var property = reader.GetPropertyDefinition(propertyHandle);
+                    if (!string.Equals(reader.GetString(property.Name), propertyName, StringComparison.Ordinal))
+                        continue;
+
+                    return property.DecodeSignature(TypeNameSignatureProvider.Instance, genericContext: null).ReturnType;
+                }
+
+                return null;
+            });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? GetFieldTypeNameFromMetadata(string fullClassName, string fieldName)
+    {
+        try
+        {
+            return ReadMetadata(reader =>
+            {
+                var typeHandle = FindTypeDefinition(reader, fullClassName);
+                if (typeHandle.IsNil)
+                    return null;
+
+                var typeDefinition = reader.GetTypeDefinition(typeHandle);
+                foreach (var fieldHandle in typeDefinition.GetFields())
+                {
+                    var field = reader.GetFieldDefinition(fieldHandle);
+                    if (!string.Equals(reader.GetString(field.Name), fieldName, StringComparison.Ordinal))
+                        continue;
+
+                    return field.DecodeSignature(TypeNameSignatureProvider.Instance, genericContext: null);
+                }
+
+                return null;
+            });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static TypeDefinitionHandle FindTypeDefinition(MetadataReader reader, string fullClassName)
+    {
+        var namespaceName = string.Empty;
+        var typeName = fullClassName;
+        var lastDotIndex = fullClassName.LastIndexOf('.');
+        if (lastDotIndex >= 0)
+        {
+            namespaceName = fullClassName[..lastDotIndex];
+            typeName = fullClassName[(lastDotIndex + 1)..];
+        }
+
+        foreach (var handle in reader.TypeDefinitions)
+        {
+            var definition = reader.GetTypeDefinition(handle);
+            if (string.Equals(reader.GetString(definition.Namespace), namespaceName, StringComparison.Ordinal)
+                && string.Equals(reader.GetString(definition.Name), typeName, StringComparison.Ordinal))
+            {
+                return handle;
+            }
+        }
+
+        return default;
+    }
+
+    private static string? ReadMetadata(Func<MetadataReader, string?> read)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+
+        var assemblyPath = GetCurrentAssemblyPath();
+        if (!File.Exists(assemblyPath))
+            return null;
+
+        using var stream = File.OpenRead(assemblyPath);
+        using var peReader = new PEReader(stream);
+        if (!peReader.HasMetadata)
+            return null;
+
+        return read(peReader.GetMetadataReader());
+    }
+
+    private sealed class TypeNameSignatureProvider : ISignatureTypeProvider<string, object?>
+    {
+        internal static readonly TypeNameSignatureProvider Instance = new();
+
+        public string GetArrayType(string elementType, ArrayShape shape)
+        {
+            return elementType + "[]";
+        }
+
+        public string GetByReferenceType(string elementType)
+        {
+            return elementType + "@";
+        }
+
+        public string GetFunctionPointerType(MethodSignature<string> signature)
+        {
+            return "System.IntPtr";
+        }
+
+        public string GetGenericInstantiation(string genericType, ImmutableArray<string> typeArguments)
+        {
+            return $"{genericType}{{{string.Join(",", typeArguments)}}}";
+        }
+
+        public string GetGenericMethodParameter(object? genericContext, int index)
+        {
+            return $"``{index}";
+        }
+
+        public string GetGenericTypeParameter(object? genericContext, int index)
+        {
+            return $"`{index}";
+        }
+
+        public string GetModifiedType(string modifierType, string unmodifiedType, bool isRequired)
+        {
+            return unmodifiedType;
+        }
+
+        public string GetPinnedType(string elementType)
+        {
+            return elementType;
+        }
+
+        public string GetPointerType(string elementType)
+        {
+            return elementType + "*";
+        }
+
+        public string GetPrimitiveType(PrimitiveTypeCode typeCode)
+        {
+            return typeCode switch
+            {
+                PrimitiveTypeCode.Boolean => "System.Boolean",
+                PrimitiveTypeCode.Byte => "System.Byte",
+                PrimitiveTypeCode.Char => "System.Char",
+                PrimitiveTypeCode.Double => "System.Double",
+                PrimitiveTypeCode.Int16 => "System.Int16",
+                PrimitiveTypeCode.Int32 => "System.Int32",
+                PrimitiveTypeCode.Int64 => "System.Int64",
+                PrimitiveTypeCode.IntPtr => "System.IntPtr",
+                PrimitiveTypeCode.Object => "System.Object",
+                PrimitiveTypeCode.SByte => "System.SByte",
+                PrimitiveTypeCode.Single => "System.Single",
+                PrimitiveTypeCode.String => "System.String",
+                PrimitiveTypeCode.UInt16 => "System.UInt16",
+                PrimitiveTypeCode.UInt32 => "System.UInt32",
+                PrimitiveTypeCode.UInt64 => "System.UInt64",
+                PrimitiveTypeCode.UIntPtr => "System.UIntPtr",
+                PrimitiveTypeCode.Void => "System.Void",
+                _ => typeCode.ToString()
+            };
+        }
+
+        public string GetSZArrayType(string elementType)
+        {
+            return elementType + "[]";
+        }
+
+        public string GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
+        {
+            var type = reader.GetTypeDefinition(handle);
+            return CombineTypeName(reader.GetString(type.Namespace), reader.GetString(type.Name));
+        }
+
+        public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
+        {
+            var type = reader.GetTypeReference(handle);
+            return CombineTypeName(reader.GetString(type.Namespace), reader.GetString(type.Name));
+        }
+
+        public string GetTypeFromSpecification(MetadataReader reader, object? genericContext, TypeSpecificationHandle handle, byte rawTypeKind)
+        {
+            var specification = reader.GetTypeSpecification(handle);
+            return specification.DecodeSignature(this, genericContext);
+        }
+
+        public string GetUnsupportedSignatureTypeKind(byte rawTypeKind)
+        {
+            return string.Empty;
+        }
+
+        private static string CombineTypeName(string namespaceName, string typeName)
+        {
+            return string.IsNullOrWhiteSpace(namespaceName)
+                ? typeName
+                : namespaceName + "." + typeName;
+        }
     }
 }
