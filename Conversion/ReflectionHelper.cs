@@ -15,7 +15,7 @@ internal static class ReflectionHelper
         new(StringComparer.OrdinalIgnoreCase);
 
 
-    private static readonly Dictionary<string, Type> _typeCache =
+    private static readonly Dictionary<string, Type?> _typeCache =
         new(StringComparer.OrdinalIgnoreCase);
 
 
@@ -128,7 +128,6 @@ internal static class ReflectionHelper
             return cachedType;
 
         var type = GetTypeFromAssembly(fullClassName, assembly);
-        if (type is null) return null;
         _typeCache[typeCacheKey] = type;
         return type;
     }
@@ -144,11 +143,9 @@ internal static class ReflectionHelper
     {
         try
         {
-            // Attempt to get the type directly
             var type = assembly.GetType(fullClassName);
             if (type != null) return type;
 
-            // Attempt to get the type by removing everything after the last dot
             var nameBeforeLastDot = GetNameBeforeLastDot(fullClassName);
             if (nameBeforeLastDot != null)
             {
@@ -156,21 +153,14 @@ internal static class ReflectionHelper
                 if (type != null) return type;
             }
 
-            // Attempt to get the nested type
             type = GetNestedType(fullClassName, assembly);
             if (type != null) return type;
 
-            // At this point, throw an exception if the type is not found
-            throw new TypeLoadException($"Type '{fullClassName}' could not be found in the assembly '{assembly.GetName().Name}'");
+            return null;
         }
-        catch (Exception ex)
+        catch (TypeLoadException)
         {
-            Console.WriteLine($"Type '{fullClassName}' could not be found in the assembly '{assembly.GetName().Name}'");
-            Debug.WriteLine($"Type '{fullClassName}' could not be found in the assembly '{assembly.GetName().Name}'");
-            if (ex is TypeLoadException)
-                return null;
-            else
-                throw;
+            return null;
         }
     }
 
@@ -227,39 +217,43 @@ internal static class ReflectionHelper
     /// <param name="name">Simple member name.</param>
     /// <param name="t">
     /// Single-letter kind discriminator: <tt>"T"</tt> type, <tt>"F"</tt> field,
-    /// <tt>"P"</tt> property, <tt>"M"</tt> method.
+    /// <tt>"P"</tt> property, <tt>"M"</tt> method, <tt>"E"</tt> event.
     /// </param>
     private static bool IsPublic(string fullClassName, string name, string t)
     {
         try
         {
+            const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+
             var type = GetTypeT(fullClassName);
             if (type is null)
                 return true;
             if (t == "T")
             {
-                return type.IsPublic;
+                return type.IsVisible;
             }
             if (t == "F")
             {
-                var field = type.GetField(name);
+                var field = type.GetField(name, bindingFlags);
                 if (field != null)
                 {
                     return field.IsPublic;
                 }
+                return true;
             }
             else if (t == "P")
             {
-                var property = type.GetProperty(name);
+                var property = type.GetProperty(name, bindingFlags);
                 if (property != null)
                 {
-                    var getter = property.GetGetMethod();
+                    var getter = property.GetGetMethod(true);
                     if (getter != null)
                         return getter.IsPublic;
-                    var setter = property.GetSetMethod();
+                    var setter = property.GetSetMethod(true);
                     if (setter != null)
                         return setter.IsPublic;
                 }
+                return true;
             }
             else if (t == "M")
             {
@@ -269,15 +263,27 @@ internal static class ReflectionHelper
                 var methodName = name;
                 if (parenIndex > 0)
                     methodName = name[..parenIndex];
-                var method = type.GetMethods().FirstOrDefault(m => m.Name == methodName);
+                var method = type.GetMethods(bindingFlags).FirstOrDefault(m => m.Name == methodName);
                 if (method != null)
                     return method.IsPublic;
+                return true;
             }
-            return false;
+            else if (t == "E")
+            {
+                var eventInfo = type.GetEvent(name, bindingFlags);
+                if (eventInfo != null)
+                {
+                    return eventInfo.AddMethod?.IsPublic == true
+                        || eventInfo.RemoveMethod?.IsPublic == true
+                        || eventInfo.RaiseMethod?.IsPublic == true;
+                }
+                return true;
+            }
+            return true;
         }
         catch
         {
-            return false;
+            return true;
         }
     }
 
@@ -290,8 +296,9 @@ internal static class ReflectionHelper
     /// standard <tt>T:Ns.Class</tt> / <tt>M:Ns.Class.Method</tt> format.
     /// </param>
     /// <returns>
-    /// <see langword="true"/> if the member is public; <see langword="false"/> when the
-    /// member is non-public, the DLL is unavailable, or the element is <see langword="null"/>.
+    /// <see langword="true"/> if the member is public or its visibility cannot be
+    /// resolved; <see langword="false"/> only when the member is confirmed to be
+    /// non-public or the element is <see langword="null"/>.
     /// </returns>
     /// <note>
     /// Results are cached by <tt>dllPath\0nameAttr</tt> so repeated calls for the same
@@ -326,9 +333,9 @@ internal static class ReflectionHelper
     private static bool ComputeIsPublic(string nameAttr)
     {
         var type = nameAttr.Split(':')[0];
-        // Check if the type is T or M or P or F
-        if (type != "T" && type != "M" && type != "P" && type != "F")
-            return false;
+        // Check if the type is T or M or P or F or E
+        if (type != "T" && type != "M" && type != "P" && type != "F" && type != "E")
+            return true;
         var className = nameAttr.Split(':')[1];
         var attributeName = className;
         if (className.Contains('('))

@@ -174,8 +174,21 @@ internal static partial class XmlToMarkdown
         }
         catch (Exception ex)
         {
-            context.WarningLogger?.LogWarning(
-                $"Failed to resolve member ordering for tag \"{name}\": {ex.Message}");
+            switch (context.UnexpectedTagAction)
+            {
+                case UnexpectedTagActionEnum.Error:
+                    throw new InvalidOperationException(
+                        $"Failed to resolve member ordering for tag \"{name}\".",
+                        ex);
+                case UnexpectedTagActionEnum.Warn:
+                    context.WarningLogger?.LogWarning(
+                        $"Failed to resolve member ordering for tag \"{name}\": {ex.Message}");
+                    break;
+                case UnexpectedTagActionEnum.Accept:
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unexpected {nameof(UnexpectedTagActionEnum)}");
+            }
         }
         return name;
     }
@@ -862,12 +875,12 @@ internal static partial class XmlToMarkdown
     internal static IEnumerable<string> GenerateTableList(XElement element, ConversionContext context)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append('\n');
+        sb.Append("\n\n");
         var header = element.Element("listheader");
         if (header != null)
         {
-            string termText = header.Element("term")?.Nodes().ToMarkDown(context).Trim() ?? "Term";
-            string descText = header.Element("description")?.Nodes().ToMarkDown(context).Trim() ?? "Description";
+            string termText = (header.Element("term")?.Nodes().ToMarkDown(context).Trim() ?? "Term").SanitizeForTableCell();
+            string descText = (header.Element("description")?.Nodes().ToMarkDown(context).Trim() ?? "Description").SanitizeForTableCell();
             sb.Append($"|{termText}|{descText}|\n|---|---|\n");
         }
         else
@@ -876,11 +889,11 @@ internal static partial class XmlToMarkdown
         }
         foreach (var item in element.Elements("item"))
         {
-            var termText = item.Element("term")?.Nodes().ToMarkDown(context).Trim() ?? string.Empty;
-            var descText = item.Element("description")?.Nodes().ToMarkDown(context).Trim() ?? string.Empty;
+            var termText = (item.Element("term")?.Nodes().ToMarkDown(context).Trim() ?? string.Empty).SanitizeForTableCell();
+            var descText = (item.Element("description")?.Nodes().ToMarkDown(context).Trim() ?? string.Empty).SanitizeForTableCell();
             sb.Append($"|{termText}|{descText}|\n");
         }
-        sb.Append('\n');
+        sb.Append("\n\n");
         return [string.Empty, sb.ToString()];
     }
 
