@@ -10,7 +10,7 @@ Use FilesToIgnore to skip files during batch conversion. The wildcard `*` is sup
 The tool looks for an empty public class named [AssemblyDoc](AssemblyDoc.cs) (abstract is recommended) and places its XML documentation at the top of the generated Markdown file. This is used to create a general documentation overview with references to the most important parts and a high-level description, similar to the main section of a README.
 
 > [!NOTE]
-> Because the tool uses Reflection to resolve member types and visibility, the compiled `.dll` must reside in the same directory as the `.xml` file. Conversion still succeeds without the DLL, but type information in tables will be reduced to the raw prefix letter (`F`, `P`, …).
+> Because the tool uses [ReflectionHelper](Conversion/ReflectionHelper.cs) to resolve member types and visibility, the compiled `.dll` must reside in the same directory as the `.xml` file. Conversion still succeeds without the DLL, but type information in tables will be reduced to the raw prefix letter (`F`, `P`, …).
 
 **Example**
 
@@ -165,6 +165,7 @@ Options are parsed by [CommandLineParser](https://github.com/commandlineparser/c
 |Directory|String|Name of the subdirectory within SearchDirectory that contains the compiled `.xml` and `.dll` files. Defaults to `"Release"`.|
 |Git|Boolean|When `true`, formats anchor links using GitHub-Flavored Markdown conventions (lower-case, hyphens instead of spaces). Tip: enable this when publishing to GitHub/GitLab so heading anchors resolve correctly.|
 |Readme|Boolean|When `true`, names the output file `README.md` instead of `{AssemblyName}.md`. Use together with `-g` when generating the landing-page documentation for a GitHub repository.|
+|RepositoryRootPath|String|Repository root used to resolve source-file links for GitHub-Flavored Markdown when a referenced type has no generated heading. If omitted, the converter tries to infer a suitable root from the search/input path.|
 |SettingsFile|String|Path to the JSON settings file that controls file and namespace exclusions. Defaults to `"settings.json"` in the working directory. If the file does not exist it is created automatically with empty default values. See [Settings](#robdk97xmldoctomdclisettings) for available properties.|
 
 ---
@@ -184,7 +185,7 @@ The settings file is created automatically with empty defaults when it does not 
 ---
 ## ROBdk97.XmlDocToMd.Cli.UnexpectedTagActionEnum
 
-Controls how the converter reacts to recoverable conversion problems, such as XML documentation tags without a registered [ITagRenderStrategy](#robdk97xmldoctomdrenderingitagrenderstrategy) or other non-fatal rendering issues encountered while walking the XML tree.
+Controls how the converter reacts to recoverable conversion problems, such as XML documentation tags without a registered [ITagRenderStrategy](Rendering/ITagRenderStrategy.cs) or other non-fatal rendering issues encountered while walking the XML tree.
 
 Choose the policy that best fits the maturity of your XML documentation:
 > [!TIP]
@@ -195,7 +196,7 @@ Choose the policy that best fits the maturity of your XML documentation:
 |Name|Type|Description|
 |---|---|---|
 |Error|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Throws when a recoverable conversion problem is encountered, halting conversion immediately.|
-|Warn|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Emits a `WARN: ` diagnostic to `stderr` via the configured [IWarningLogger](#robdk97xmldoctomdloggingiwarninglogger) and continues conversion, producing partial output.|
+|Warn|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Emits a `WARN: ` diagnostic to `stderr` via the configured [IWarningLogger](Logging/IWarningLogger.cs) and continues conversion, producing partial output.|
 |Accept|[UnexpectedTagActionEnum](#robdk97xmldoctomdcliunexpectedtagactionenum)|Silently ignores recoverable conversion problems. No diagnostic is emitted and no output is produced for the skipped element.|
 
 ---

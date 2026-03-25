@@ -69,6 +69,26 @@ internal class ConversionContext
     }
 
     /// <summary>
+    /// Absolute repository root used to resolve fallback source-file links.
+    /// Empty when repository-relative linking is unavailable.
+    /// </summary>
+    internal string RepositoryRootPath
+    {
+        get => field ?? string.Empty;
+        set => field = value;
+    }
+
+    /// <summary>
+    /// Absolute path of the Markdown file currently being written.
+    /// Used to compute relative repository links for GitHub output.
+    /// </summary>
+    internal string OutputMarkdownFile
+    {
+        get => field ?? string.Empty;
+        set => field = value;
+    }
+
+    /// <summary>
     /// Number of leading namespace parts to trim from DevExpress and other vendor namespaces.
     /// Set to 0 to disable namespace trimming. Default is 0.
     /// </summary>
