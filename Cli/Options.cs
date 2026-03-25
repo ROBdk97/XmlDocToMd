@@ -105,6 +105,14 @@ public class Options
     public bool Readme { get; set; }
 
     /// <summary>
+    /// Repository root used to resolve source-file links for GitHub-Flavored Markdown
+    /// when a referenced type has no generated heading.
+    /// If omitted, the converter tries to infer a suitable root from the search/input path.
+    /// </summary>
+    [Option('p', "repo-root", HelpText = "Repository root used to resolve source file links for GitHub output.")]
+    public string? RepositoryRootPath { get; set; }
+
+    /// <summary>
     /// Path to the JSON settings file that controls file and namespace exclusions.
     /// Defaults to <tt>"settings.json"</tt> in the working directory.
     /// If the file does not exist it is created automatically with empty default values.

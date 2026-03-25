@@ -92,6 +92,10 @@ internal static class Program
         Debug.WriteLine($"Total time: {DateTime.Now - startTime}");
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="path"/> contains a directory
+    /// component equal to <paramref name="directoryName"/> (case-insensitive).
+    /// </summary>
     private static bool IsInDirectory(string path, string directoryName)
     {
         if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directoryName))
@@ -106,6 +110,10 @@ internal static class Program
         return parts.Any(part => part.Equals(directoryName, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="fileName"/> matches at least
+    /// one of the wildcard <paramref name="ignorePatterns"/> (e.g. <c>*.Designer.xml</c>).
+    /// </summary>
     private static bool IsIgnoredFile(string fileName, IEnumerable<string> ignorePatterns)
     {
         ArgumentNullException.ThrowIfNull(fileName);
@@ -127,6 +135,11 @@ internal static class Program
         return false;
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="input"/> matches the glob
+    /// <paramref name="pattern"/>, where <c>*</c> matches any sequence of characters.
+    /// Matching is case-insensitive.
+    /// </summary>
     private static bool WildcardMatch(string input, string pattern)
     {
         var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
@@ -134,13 +147,16 @@ internal static class Program
     }
 
     /// <summary>
-    /// Main function to convert XML to Markdown.
+    /// Converts a single XML documentation file to Markdown and writes the result to
+    /// <paramref name="output"/>. Applies pre-processing steps (moving assembly doc,
+    /// namespace removal, injecting missing <c>&lt;returns&gt;</c> tags) before
+    /// conversion and appends a standard footer.
     /// </summary>
-    /// <param name="input"></param>
-    /// <param name="output"></param>
-    /// <param name="options"></param>
-    /// <param name="serviceProvider"></param>
-    /// <param name="settings"></param>
+    /// <param name="input">Absolute path to the input XML documentation file.</param>
+    /// <param name="output">Absolute path to the output Markdown file.</param>
+    /// <param name="options">Parsed CLI options.</param>
+    /// <param name="serviceProvider">DI container used to resolve the logger and renderer registry.</param>
+    /// <param name="settings">Loaded settings (namespace filter, file ignore patterns, etc.).</param>
     private static void RunXmlToMarkdown(
         string input,
         string output,
@@ -153,6 +169,10 @@ internal static class Program
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(serviceProvider);
         ArgumentNullException.ThrowIfNull(settings);
+
+        input = Path.GetFullPath(input);
+        output = Path.GetFullPath(output);
+        var repositoryRootPath = ResolveRepositoryRootPath(options, input);
 
         ReflectionHelper.SetCurrentXmlFile(input);
 
@@ -180,6 +200,8 @@ internal static class Program
             Registry = registry,
             CurrentXmlFile = input,
             IsGitHub = options.Git,
+            RepositoryRootPath = repositoryRootPath,
+            OutputMarkdownFile = output,
         };
 
         var md = doc.Root?.ToMarkDown(context) ?? string.Empty;
@@ -225,9 +247,9 @@ internal static class Program
     }
 
     /// <summary>
-    /// Add a Returns Tag to all Methods that dont have a return value.
+    /// Inserts an empty <c>&lt;returns/&gt;</c> element into every method member that
+    /// does not already have one, ensuring the returns row is rendered in output tables.
     /// </summary>
-    /// <param name="doc"></param>
     private static void AddReturnsToMethods(XDocument doc)
     {
         // try to find all members with a name starting with M: and add a returns tag if there is none.
@@ -248,7 +270,8 @@ internal static class Program
     }
 
     /// <summary>
-    /// Remove all Nodes containing EXAMPLE XML Doc
+    /// Removes all <c>&lt;member&gt;</c> elements from the document whose name contains
+    /// a namespace listed in <see cref="Settings.NameSpacesToRemove"/>.
     /// </summary>
     private static void RemoveNameSpaces(XDocument doc, Settings settings)
     {
@@ -275,5 +298,40 @@ internal static class Program
         {
             node.Remove();
         }
+    }
+
+    /// <summary>
+    /// Resolves the repository root directory for source-file linking.
+    /// Resolution order:
+    /// <list type="number">
+    ///   <item>Explicit <c>-p|--repo-root</c> option.</item>
+    ///   <item>The search directory (<c>-s</c>) when supplied.</item>
+    ///   <item>Walking up the directory tree from the input file until a <c>.git</c> folder is found.</item>
+    /// </list>
+    /// Returns an empty string when none of the above succeeds.
+    /// </summary>
+    private static string ResolveRepositoryRootPath(Options options, string input)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(input);
+
+        if (!string.IsNullOrWhiteSpace(options.RepositoryRootPath))
+            return Path.GetFullPath(options.RepositoryRootPath);
+
+        if (!string.IsNullOrWhiteSpace(options.SearchDirectory))
+            return Path.GetFullPath(options.SearchDirectory);
+
+        var currentDirectory = new DirectoryInfo(Path.GetDirectoryName(Path.GetFullPath(input))
+            ?? throw new InvalidOperationException("Input directory could not be determined."));
+
+        while (currentDirectory is not null)
+        {
+            if (currentDirectory.EnumerateDirectories(".git", SearchOption.TopDirectoryOnly).Any())
+                return currentDirectory.FullName;
+
+            currentDirectory = currentDirectory.Parent;
+        }
+
+        return string.Empty;
     }
 }

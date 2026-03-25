@@ -25,7 +25,7 @@ namespace ROBdk97.XmlDocToMd;
 /// README.
 /// </para>
 /// <note>
-/// Because the tool uses Reflection to resolve member types and visibility, the
+/// Because the tool uses <see cref="ReflectionHelper">Reflection</see> to resolve member types and visibility, the
 /// compiled <tt>.dll</tt> must reside in the same directory as the <tt>.xml</tt> file.
 /// Conversion still succeeds without the DLL, but type information in tables will be
 /// reduced to the raw prefix letter (<tt>F</tt>, <tt>P</tt>, …).
