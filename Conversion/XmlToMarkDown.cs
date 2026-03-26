@@ -20,7 +20,7 @@ internal static partial class XmlToMarkdown
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();
 
-    [GeneratedRegex(@">\s+")]
+    [GeneratedRegex(@">(?!\s|$)")]
     private static partial Regex BlockQuotePrefixRegex();
 
     [GeneratedRegex(@"\n\n\n+")]
@@ -57,15 +57,15 @@ internal static partial class XmlToMarkdown
     /// </summary>
     private static readonly Dictionary<string, string> _types = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["string"]  = "string",
-        ["object"]  = "object",
-        ["int32"]   = "int",
-        ["int64"]   = "long",
+        ["string"] = "string",
+        ["object"] = "object",
+        ["int32"] = "int",
+        ["int64"] = "long",
         ["boolean"] = "bool",
         ["decimal"] = "decimal",
-        ["void"]    = "void",
-        ["double"]  = "double",
-        ["byte"]    = "byte",
+        ["void"] = "void",
+        ["double"] = "double",
+        ["byte"] = "byte",
     };
 
     #endregion
@@ -362,7 +362,7 @@ internal static partial class XmlToMarkdown
             if (name.StartsWith("T:", StringComparison.Ordinal))
             {
                 var typeName = name[2..];
-                var documentedLinkTarget = ResolveDocumentedTypeLinkTarget(typeName, node);
+                var documentedLinkTarget = ResolveDocumentedTypeLinkTarget(typeName, node, context);
 
                 // Type is documented in the current XML → it will be a heading in this markdown file.
                 if (!string.IsNullOrWhiteSpace(documentedLinkTarget))
@@ -451,29 +451,104 @@ internal static partial class XmlToMarkdown
     /// </summary>
     /// <param name="typeName">Fully-qualified type name without the <c>T:</c> prefix.</param>
     /// <param name="node">
+    /// <param name="context"/>
     /// Any element within the XML document to use as the document root anchor.
     /// </param>
     /// <returns>
     /// The matched type name (for anchor generation), or <see langword="null"/> when the
     /// type is not publicly documented in this document.
     /// </returns>
-    private static string? ResolveDocumentedTypeLinkTarget(string typeName, XElement node)
+    private static string? ResolveDocumentedTypeLinkTarget(string typeName, XElement node, ConversionContext context)
+    {
+        ArgumentNullException.ThrowIfNull(typeName);
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var normalizedTypeName = NormalizeTypeNameForDocumentationLookup(typeName);
+
+        var documentedMember = FindDocumentedTypeMember(normalizedTypeName, node);
+        if (documentedMember is not null)
+            return ResolveDocumentedTypeHeadingText(documentedMember, context, normalizedTypeName);
+
+        var shortName = normalizedTypeName.Split('.').Last();
+        if (shortName.Length <= 1 || shortName[0] != 'I' || !char.IsUpper(shortName[1]))
+            return null;
+
+        var lastDotIndex = normalizedTypeName.LastIndexOf('.');
+        var namespacePrefix = lastDotIndex >= 0 ? normalizedTypeName[..(lastDotIndex + 1)] : string.Empty;
+        var classTypeName = namespacePrefix + shortName[1..];
+
+        documentedMember = FindDocumentedTypeMember(classTypeName, node);
+        return documentedMember is null
+            ? null
+            : ResolveDocumentedTypeHeadingText(documentedMember, context, classTypeName);
+    }
+
+    private static XElement? FindDocumentedTypeMember(string typeName, XElement node)
     {
         ArgumentNullException.ThrowIfNull(typeName);
         ArgumentNullException.ThrowIfNull(node);
 
-        if (HasDocumentedType(typeName, node))
-            return typeName;
+        return node.Document?
+            .Root?
+            .Element("members")?
+            .Elements("member")
+            .FirstOrDefault(member => string.Equals(member.Attribute("name")?.Value, "T:" + typeName, StringComparison.Ordinal)
+                                      && ReflectionHelper.IsPublic(member));
+    }
 
-        var shortName = typeName.Split('.').Last();
-        if (shortName.Length <= 1 || shortName[0] != 'I' || !char.IsUpper(shortName[1]))
-            return null;
+    private static string ResolveDocumentedTypeHeadingText(XElement documentedMember, ConversionContext context, string fallbackTypeName)
+    {
+        ArgumentNullException.ThrowIfNull(documentedMember);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(fallbackTypeName);
 
-        var lastDotIndex = typeName.LastIndexOf('.');
-        var namespacePrefix = lastDotIndex >= 0 ? typeName[..(lastDotIndex + 1)] : string.Empty;
-        var classTypeName = namespacePrefix + shortName[1..];
+        var memberName = documentedMember.Attribute("name")?.Value;
+        if (string.IsNullOrWhiteSpace(memberName) || !memberName.StartsWith("T:", StringComparison.Ordinal))
+            return fallbackTypeName;
 
-        return HasDocumentedType(classTypeName, node) ? classTypeName : null;
+        var typeName = memberName[2..];
+        if (string.IsNullOrWhiteSpace(typeName))
+            return fallbackTypeName;
+
+        return BuildTypeHeadingFromTypeName(typeName, documentedMember);
+    }
+
+    /// <summary>
+    /// Builds the heading text used for type sections directly from an XML-doc type name
+    /// (e.g. <c>Ns.Type`2</c> => <c>Ns.Type‹TViewModel, TSettings›</c>) without rendering
+    /// nested XML nodes.
+    /// </summary>
+    private static string BuildTypeHeadingFromTypeName(string xmlDocTypeName, XElement documentedMember)
+    {
+        ArgumentNullException.ThrowIfNull(xmlDocTypeName);
+        ArgumentNullException.ThrowIfNull(documentedMember);
+
+        var result = xmlDocTypeName;
+
+        var tickIndex = result.LastIndexOf('`');
+        if (tickIndex > 0)
+        {
+            var arityText = result[(tickIndex + 1)..];
+            if (int.TryParse(arityText, out var arity) && arity > 0)
+            {
+                var typeParameterNames = documentedMember
+                    .Elements("typeparam")
+                    .Select(x => x.Attribute("name")?.Value)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Cast<string>()
+                    .ToList();
+
+                IEnumerable<string> genericNames =
+                    typeParameterNames.Count == arity
+                        ? typeParameterNames
+                        : Enumerable.Range(1, arity).Select(i => $"T{i}");
+
+                result = result[..tickIndex] + "‹" + string.Join(", ", genericNames) + "›";
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -485,13 +560,34 @@ internal static partial class XmlToMarkdown
         ArgumentNullException.ThrowIfNull(typeName);
         ArgumentNullException.ThrowIfNull(node);
 
-        return node.Document?
-            .Root?
-            .Element("members")?
-            .Elements("member")
-            .Any(member =>
-                string.Equals(member.Attribute("name")?.Value, "T:" + typeName, StringComparison.Ordinal)
-                && ReflectionHelper.IsPublic(member)) == true;
+        return FindDocumentedTypeMember(typeName, node) is not null;
+    }
+
+    /// <summary>
+    /// Normalizes a cref type name for XML documentation lookup by converting
+    /// metadata-style generic arguments (e.g. <c>Type{T1,T2}</c>) to XML-doc generic
+    /// arity notation (e.g. <c>Type`2</c>).
+    /// </summary>
+    private static string NormalizeTypeNameForDocumentationLookup(string typeName)
+    {
+        ArgumentNullException.ThrowIfNull(typeName);
+
+        var normalized = typeName.Trim();
+
+        var genericStart = normalized.IndexOf('{');
+        if (genericStart >= 0)
+        {
+            var genericArgs = normalized[(genericStart + 1)..].TrimEnd('}');
+            var arity = string.IsNullOrWhiteSpace(genericArgs)
+                ? 0
+                : genericArgs.Split(',').Length;
+
+            normalized = normalized[..genericStart];
+            if (arity > 0)
+                normalized += "`" + arity;
+        }
+
+        return normalized;
     }
 
     /// <summary>
@@ -581,7 +677,6 @@ internal static partial class XmlToMarkdown
 
         return "../" + type.Assembly.GetName().Name + "/#" + url.ToLowerInvariant();
     }
-
     #endregion
 
     #region Member Extraction
@@ -893,13 +988,13 @@ internal static partial class XmlToMarkdown
         ArgumentNullException.ThrowIfNull(node);
         ArgumentNullException.ThrowIfNull(context);
 
-        if (isArray)  displayName += "[]";
-        if (isByRef)  displayName += "@";
+        if (isArray) displayName += "[]";
+        if (isByRef) displayName += "@";
 
         if (typeName.StartsWith("System.", StringComparison.Ordinal))
             return displayName;
 
-        var documentedLinkTarget = ResolveDocumentedTypeLinkTarget(typeName, node);
+        var documentedLinkTarget = ResolveDocumentedTypeLinkTarget(typeName, node, context);
 
         if (context.IsGitHub)
         {
@@ -942,14 +1037,14 @@ internal static partial class XmlToMarkdown
     /// </summary>
     private static string CleanUpTypeForUrl(string s)
     {
-        var isRef   = s.Contains('@');
+        var isRef = s.Contains('@');
         var isArray = s.Contains("[]");
 
         if (s.Contains('#'))
         {
             string temp = s.Split('#')[1];
-            if (isRef)   temp = temp.Replace("@", string.Empty);
-            if (isArray) s    = s.Replace("[]", string.Empty);
+            if (isRef) temp = temp.Replace("@", string.Empty);
+            if (isArray) s = s.Replace("[]", string.Empty);
             if (temp.Contains(')')) temp = temp.Split(')')[0];
 
             if (_types.ContainsKey(temp))
@@ -958,7 +1053,7 @@ internal static partial class XmlToMarkdown
                 s = _types[temp.ToLower()];
             }
 
-            if (isRef)   s += "@";
+            if (isRef) s += "@";
             if (isArray) s += "[]";
         }
 
@@ -1078,7 +1173,7 @@ internal static partial class XmlToMarkdown
                     if (_types.TryGetValue(tempType, out tempType))
                         type = tempType ?? type;
                     if (isParameterArray) type += "[]";
-                    if (isReferenceType)  type += "@";
+                    if (isReferenceType) type += "@";
                 }
                 else
                 {
