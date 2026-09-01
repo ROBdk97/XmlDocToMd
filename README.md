@@ -10,7 +10,7 @@ Use FilesToIgnore to skip files during batch conversion. The wildcard `*` is sup
 The tool looks for an empty public class named [AssemblyDoc](AssemblyDoc.cs) (abstract is recommended) and places its XML documentation at the top of the generated Markdown file. This is used to create a general documentation overview with references to the most important parts and a high-level description, similar to the main section of a README.
 
 > [!NOTE]
-> Because the tool uses [ReflectionHelper](Conversion/ReflectionHelper.cs) to resolve member types and visibility, the compiled `.dll` must reside in the same directory as the `.xml` file. Conversion still succeeds without the DLL, but type information in tables will be reduced to the raw prefix letter (`F`, `P`, …).
+> Because the tool uses Reflection ([ReflectionHelper](Conversion/ReflectionHelper.cs)) to resolve member types and visibility, the compiled `.dll` must reside in the same directory as the `.xml` file. Conversion still succeeds without the DLL, but type information in tables will be reduced to the raw prefix letter (`F`, `P`, …).
 
 **Example**
 
@@ -130,6 +130,7 @@ Searches `C:\Project\Docs` for sub-folders named `Release`, converts every `.xml
 |`important`|`> [!IMPORTANT]` — key information.|
 |`warning`|`> [!WARNING]` — potential pitfall.|
 |`caution`|`> [!CAUTION]` — dangerous action ahead.|
+Moves the content of any `<member name="…AssemblyDoc…">` elements into the `<assembly>` node so that assembly-level documentation is rendered at the top of the output file.
 
 ---
 ## ROBdk97.XmlDocToMd.Cli.Options
