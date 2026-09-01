@@ -471,11 +471,14 @@ internal static class ReflectionHelper
     /// </param>
     private static bool ComputeIsPublic(string nameAttr)
     {
-        var type = nameAttr.Split(':')[0];
+        var parts = nameAttr.Split(':');
+        var type = parts[0];
         if (type != "T" && type != "M" && type != "P" && type != "F" && type != "E")
             return true;
 
-        var className = nameAttr.Split(':')[1];
+        if (parts.Length < 2)
+            return true;
+        var className = parts[1];
         var attributeName = className;
         if (className.Contains('('))
             className = className.Split('(')[0];

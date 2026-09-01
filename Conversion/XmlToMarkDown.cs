@@ -840,11 +840,17 @@ internal static partial class XmlToMarkdown
         string retTypeName;
         var className = node.Parent?.Attribute("name")?.Value ?? string.Empty;
         var type = className.Split(':')[0];
-        className = className.Split('(')[0].Split(':')[1];
+        var typeAndName = className.Split('(')[0].Split(':');
+        if (typeAndName.Length < 2)
+            return [string.Empty];
+        className = typeAndName[1];
         if (type == "M" || type == "P" || type == "F")
             className = className[..className.LastIndexOf('.')];
 
-        var methodName = (node.Parent?.Attribute("name")?.Value ?? string.Empty).Split(':')[1];
+        var classParts = (node.Parent?.Attribute("name")?.Value ?? string.Empty).Split(':');
+        if (classParts.Length < 2)
+            return [string.Empty];
+        var methodName = classParts[1];
         methodName = methodName[(className.Length + 1)..];
 
         if (methodName.Contains("#ctor"))
@@ -950,7 +956,7 @@ internal static partial class XmlToMarkdown
         ArgumentNullException.ThrowIfNull(node);
         ArgumentNullException.ThrowIfNull(context);
 
-        var isByRef = typeName.EndsWith("@", StringComparison.Ordinal);
+        var isByRef = typeName.EndsWith('@');
         if (isByRef)
             typeName = typeName[..^1];
 
@@ -958,7 +964,7 @@ internal static partial class XmlToMarkdown
         if (isArray)
             typeName = typeName[..^2];
 
-        if (typeName.StartsWith("System.Nullable{", StringComparison.Ordinal) && typeName.EndsWith("}", StringComparison.Ordinal))
+        if (typeName.StartsWith("System.Nullable{", StringComparison.Ordinal) && typeName.EndsWith('}'))
         {
             var innerTypeName = typeName[16..^1];
             return FormatTypeName(innerTypeName, node, context) + "?";
@@ -1042,7 +1048,10 @@ internal static partial class XmlToMarkdown
 
         if (s.Contains('#'))
         {
-            string temp = s.Split('#')[1];
+            var parts = s.Split('#');
+            if (parts.Length < 2)
+                return s;
+            string temp = parts[1];
             if (isRef) temp = temp.Replace("@", string.Empty);
             if (isArray) s = s.Replace("[]", string.Empty);
             if (temp.Contains(')')) temp = temp.Split(')')[0];

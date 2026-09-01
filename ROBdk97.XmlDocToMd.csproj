@@ -1,15 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
+		<Version>1.0.1.6</Version>
 		<TargetFrameworks>net10.0-windows;net10.0</TargetFrameworks>
 		<OutputType>Exe</OutputType>
-		<ApplicationRevision>0</ApplicationRevision>
-		<ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+		<AssemblyTitle>ROBdk97.XmlDocToMd</AssemblyTitle>
+		<Authors>ROBdk97</Authors>
+		<Author>ROBdk97</Author>
+		<Product>ROBdk97.XmlDocToMd</Product>
+		<Copyright>Copyright ©ROBdk97 2023-2026</Copyright>
+		<AssemblyName>XmlDocToMd</AssemblyName>
+		<StartupObject>ROBdk97.XmlDocToMd.Program</StartupObject>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<RuntimeIdentifiers>win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
 		<Platforms>AnyCPU;x64</Platforms>
 		<Configurations>Debug;Release;XMLtoMD</Configurations>
 		<Nullable>enable</Nullable>
-		<LangVersion>14</LangVersion>
+		<LangVersion>latest</LangVersion>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 	<ItemGroup>
@@ -25,19 +32,8 @@
 		<PackageReference Include="CommandLineParser">
 			<Version>2.9.1</Version>
 		</PackageReference>
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
 	</ItemGroup>
-	<PropertyGroup>
-		<AssemblyTitle>ROBdk97.XmlDocToMd</AssemblyTitle>
-		<Authors>ROBdk97</Authors>
-		<Author>ROBdk97</Author>
-		<Product>ROBdk97.XmlDocToMd</Product>
-		<Copyright>Copyright ©  2023</Copyright>
-		<AssemblyVersion>0.3.%2a</AssemblyVersion>
-		<AssemblyName>XmlDocToMd</AssemblyName>
-		<StartupObject>ROBdk97.XmlDocToMd.Program</StartupObject>
-		<GenerateDocumentationFile>True</GenerateDocumentationFile>
-	</PropertyGroup>
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'XMLtoMD' and '$(TargetFramework)' == 'net10.0-windows'">
 		<Exec Command="call &quot;$(TargetDir)$(TargetName).exe&quot; -s &quot;$(ProjectDir)\&quot; -d &quot;$(ConfigurationName)&quot; -o &quot;$(ProjectDir)\&quot; -g -r -p &quot;$(ProjectDir)\&quot;" />
 	</Target>
