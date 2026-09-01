@@ -837,21 +837,24 @@ internal static partial class XmlToMarkdown
     /// <returns>A single-element array containing the resolved type name.</returns>
     internal static string[] GetReturnType(XElement node, ConversionContext context)
     {
-        string retTypeName;
-        var className = node.Parent?.Attribute("name")?.Value ?? string.Empty;
-        var type = className.Split(':')[0];
-        var typeAndName = className.Split('(')[0].Split(':');
-        if (typeAndName.Length < 2)
-            return [string.Empty];
-        className = typeAndName[1];
-        if (type == "M" || type == "P" || type == "F")
-            className = className[..className.LastIndexOf('.')];
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(context);
 
-        var classParts = (node.Parent?.Attribute("name")?.Value ?? string.Empty).Split(':');
-        if (classParts.Length < 2)
-            return [string.Empty];
-        var methodName = classParts[1];
-        methodName = methodName[(className.Length + 1)..];
+        string retTypeName;
+        var memberName = node.Parent?.Attribute("name")?.Value ?? string.Empty;
+        var memberNameParts = memberName.Split(':', 2);
+        var type = memberNameParts[0];
+        if (memberNameParts.Length < 2)
+            return [node.Value];
+
+        var memberPath = memberNameParts[1];
+        var memberPathWithoutParameters = memberPath.Split('(')[0];
+        var lastDotIndex = memberPathWithoutParameters.LastIndexOf('.');
+        if (lastDotIndex < 0)
+            return [node.Value];
+
+        var className = memberPathWithoutParameters[..lastDotIndex];
+        var methodName = memberPath[(lastDotIndex + 1)..];
 
         if (methodName.Contains("#ctor"))
         {

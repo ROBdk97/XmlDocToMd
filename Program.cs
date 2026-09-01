@@ -184,6 +184,8 @@ internal static class Program
 
         // move the AssemblyDoc node to the assembly node.
         MoveAssemblyDoc(doc);
+        // Remove compiler-generated members that should not appear in published docs.
+        RemoveGeneratedMembers(doc);
         // Remove unwanted NameSpaces
         RemoveNameSpaces(doc, settings);
         // Add a returns tag to all methods that dont have one.
@@ -270,6 +272,28 @@ internal static class Program
     }
 
     /// <summary>
+    /// Removes compiler-generated regex implementation members that are emitted for
+    /// <see cref="GeneratedRegexAttribute"/> methods and should not appear in published API docs.
+    /// </summary>
+    private static void RemoveGeneratedMembers(XDocument doc)
+    {
+        if (doc.Root is null) return;
+
+        var membersElement = doc.Root.Element("members");
+        if (membersElement is null) return;
+
+        var nodesToRemove = membersElement
+            .Elements("member")
+            .Where(member => member.Attribute("name")?.Value?.Contains("System.Text.RegularExpressions.Generated.", StringComparison.Ordinal) == true)
+            .ToList();
+
+        foreach (var node in nodesToRemove)
+        {
+            node.Remove();
+        }
+    }
+
+    /// <summary>
     /// Removes all <c>&lt;member&gt;</c> elements from the document whose name contains
     /// a namespace listed in <see cref="Settings.NameSpacesToRemove"/>.
     /// </summary>
@@ -289,7 +313,7 @@ internal static class Program
             .Where(member =>
             {
                 var name = member.Attribute("name")?.Value;
-                return name != null && namespacesToRemove.Any(ns => name.Contains(ns));
+                return name != null && namespacesToRemove.Any(ns => name.Contains(ns, StringComparison.Ordinal));
             })
             .ToList();
 
